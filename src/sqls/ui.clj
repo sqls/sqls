@@ -1,26 +1,30 @@
 (ns sqls.ui
   "Deal with UI"
   (:use seesaw.core)
-  (:require [sqls [stor :as stor]])
-  (:require [sqls.ui.worksheet :as sqls.ui.worksheet])
-  )
+  (:require [sqls.stor :as stor])
+  (:require seesaw.table)
+  (:require sqls.ui.worksheet))
 
 
 (defn build-connection-list-item
   "Convert one connection to UI item struct."
   [conn]
-  {:name (conn "name")})
+  {:name (conn "name")
+   :desc (conn "desc")
+   :class (conn "class")
+   :conn-data conn})
 
 
 (defn build-connection-list-table
-  "Create a component that contains list of connections, bo be added to respective container"
+  "Create a UI component that contains list of connections, bo be added to respective container.
+  Parameter connections contains a list of conn-data maps, this parameter can be nil."
   [connections]
   (println (format "building table for %d connections" (count (vals connections))))
-  (let [t (table
-    :id :conn-list-table
-    :model [:columns [:name]
-            :rows (map build-connection-list-item (vals connections))])]
-    (println "table" t)
+  (let [t (scrollable(table
+            :id :conn-list-table
+            :preferred-size [480 :by 320]
+            :model [:columns [:name :desc :class]
+                    :rows (map build-connection-list-item connections)]))]
     t))
   
 
@@ -44,9 +48,14 @@
   (let [
         root (to-root e)
         conn-name (value (select root [:#name]))
+        conn-class (value (select root [:#class]))
         conn-jdbc-conn-str (value (select root [:#jdbc-conn-str]))
         conn-desc (value (select root [:#desc]))
-        new-connections (stor/add-connection! conn-name conn-jdbc-conn-str conn-desc)
+        conn-data {"name" conn-name
+                   "class" conn-class
+                   "jdbc-conn-str" conn-jdbc-conn-str
+                   "desc" conn-desc}
+        new-connections (stor/add-connection! conn-data)
         old-conn-list-table (select conn-list-frame [:#conn-list-table])
         _ (println "old-conn-list-table" old-conn-list-table)
         new-conn-list-table (build-connection-list-table new-connections)
@@ -71,6 +80,7 @@
                     :vgap 10
                     :items [
                             "Name" (text :id :name)
+                            "Driver Class" (text :id :class)
                             "JDBC Connection String" (text :id :jdbc-conn-str)
                             "Description" (text :id :desc)])
                   (horizontal-panel
@@ -102,35 +112,61 @@
 )
 
 
+(defn get-selected-conn-data
+  "Extract currently selected conn-data from connection list frame."
+  [frame]
+  (let [table (select frame [:#conn-list-table])
+        _ (println "conn list table: " table)
+        selected-table-item (selection table)
+        _ (println "selected table item:" selected-table-item ", type:" (type selected-table-item))
+        conn-item (seesaw.table/value-at table selected-table-item)
+        conn-data (:conn-data conn-item)
+        _ (println "conn-data:" conn-data)]
+    conn-data))
+
+
 (defn on-btn-connect-click
-  "Handle button Connect click action: open worksheet window bound to selected connection."
-  [e]
-  (let [worksheet-frame (sqls.ui.worksheet/create-worksheet-frame)]
-    (println "worksheet-frame:" worksheet-frame)
-    (show! worksheet-frame)
-    )
-)
+  "Handle button Connect click action: open worksheet window bound to selected connection.
+  Returns worksheet data structure that contains conn-data and frame.
+  
+  Parameters:
+  
+  - conn-list-frame - parent frame,
+  - create-worksheet! - function that sets up and creates worksheet (passed to create-login-ui).
+  "
+  [conn-list-frame create-worksheet! e]
+  (println "connect btn clicked: frame:" conn-list-frame ", event:" e)
+  (let [conn-data (get-selected-conn-data conn-list-frame)]
+    (println "conn-data:" conn-data)
+    (create-worksheet! conn-data)))
 
 
-(defn build-login-ui
-  "Create login window"
-  [connections]
+(defn create-login-ui
+  "Create login window.
+  Parameters:
+
+  - handlers - maps of handlers with following keys:
+  
+    - create-worksheet - called when user clicks connect button,
+    
+  - connections - list of connections do display."
+  [handlers settings connections]
+  (println "settings" settings)
+  (println "connections" connections)
   (let [btn-add (button :id :btn-new :text "Add" :listen [:action on-btn-add-click])
         btn-delete (button :id :btn-delete :text "Delete" :listen [:action on-btn-delete-click])
-        btn-connect (button :id :btn-connect :text "Connect" :listen [:action on-btn-connect-click])]
-    (-> (frame :title "SQLS"
+        btn-connect (button :id :btn-connect :text "Connect")
+        frame (frame :title "SQLS"
                :content (vertical-panel :id :panel
+                                        :border 4
                                         :items [
                                                 (build-connection-list-table connections)
-                                                (horizontal-panel :items [
+                                                (horizontal-panel :border 4
+                                                                  :items [
                                                                           btn-add
                                                                           btn-delete
                                                                           btn-connect])])
-               :on-close :exit)
-        pack!
-        show!)
-  )
-)
-
-
+               :on-close :exit)]
+    (listen btn-connect :action (partial on-btn-connect-click frame (:create-worksheet handlers)))
+    frame))
 
