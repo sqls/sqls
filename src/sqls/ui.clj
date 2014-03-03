@@ -1,6 +1,8 @@
+
 (ns sqls.ui
   "Deal with UI"
   (:use seesaw.core)
+  (:require [seesaw.bind :as b])
   (:require [sqls.stor :as stor])
   (:require seesaw.table)
   (:require sqls.ui.worksheet))
@@ -25,7 +27,6 @@
             :model [:columns [:name :desc :class]
                     :rows (map build-connection-list-item connections)])]
     t))
-  
 
 
 (defn on-btn-add-connection-cancel
@@ -148,6 +149,21 @@
     (create-worksheet! conn-data)))
 
 
+(defn set-conn-list-frame-bindings!
+  [frame]
+  (let [conn-list-table (select frame [:#conn-list-table])
+        btn-connect (select frame [:#btn-connect])
+        btn-delete (select frame [:#btn-delete])]
+    (assert (not= conn-list-table nil))
+    (assert (not= btn-connect nil))
+    (assert (not= btn-delete nil))
+    (b/bind
+      (b/selection conn-list-table)
+      (b/transform (fn [s] (not= s nil)))
+      (b/property btn-connect :enabled?)
+      (b/property btn-delete :enabled?))))  
+
+
 (defn create-login-ui
   "Create login window.
   Parameters:
@@ -161,8 +177,8 @@
   (println "settings" settings)
   (println "connections" connections)
   (let [btn-add (button :id :btn-new :text "Add" :listen [:action on-btn-add-click])
-        btn-delete (button :id :btn-delete :text "Delete" :listen [:action on-btn-delete-click])
-        btn-connect (button :id :btn-connect :text "Connect")
+        btn-delete (button :id :btn-delete :text "Delete" :enabled? false :listen [:action on-btn-delete-click])
+        btn-connect (button :id :btn-connect :text "Connect" :enabled? false)
         frame (frame :title "SQLS"
                :content (vertical-panel :id :panel
                                         :border 4
@@ -175,5 +191,6 @@
                                                                           btn-connect])])
                :on-close :exit)]
     (listen btn-connect :action (partial on-btn-connect-click frame (:create-worksheet handlers)))
+    (set-conn-list-frame-bindings! frame)
     frame))
 
