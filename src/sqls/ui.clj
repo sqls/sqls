@@ -19,12 +19,11 @@
   "Create a UI component that contains list of connections, bo be added to respective container.
   Parameter connections contains a list of conn-data maps, this parameter can be nil."
   [connections]
-  (println (format "building table for %d connections" (count (vals connections))))
-  (let [t (scrollable(table
+  (let [t (table
             :id :conn-list-table
             :preferred-size [480 :by 320]
             :model [:columns [:name :desc :class]
-                    :rows (map build-connection-list-item connections)]))]
+                    :rows (map build-connection-list-item connections)])]
     t))
   
 
@@ -61,8 +60,8 @@
         new-conn-list-table (build-connection-list-table new-connections)
         _ (println "new-conn-list-table" new-conn-list-table)
         ]
-    (replace! (select conn-list-frame [:#panel]) old-conn-list-table new-conn-list-table)
-    (pack! conn-list-frame)
+    (replace! (.getParent old-conn-list-table) old-conn-list-table new-conn-list-table)
+    ; (pack! conn-list-frame)
     (dispose! e)
     )
   )
@@ -106,12 +105,6 @@
 )
 
 
-(defn on-btn-delete-click
-  [e]
-  (alert "Delete")
-)
-
-
 (defn get-selected-conn-data
   "Extract currently selected conn-data from connection list frame."
   [frame]
@@ -123,6 +116,20 @@
         conn-data (:conn-data conn-item)
         _ (println "conn-data:" conn-data)]
     conn-data))
+
+
+(defn on-btn-delete-click
+  "User clicks delete button in connection list window.
+  TODO: ask for confirmation asynchronously (but modally)."
+  [e]
+  (let [frame (to-root e)
+        conn-data (get-selected-conn-data frame)]
+    (if (not= conn-data nil)
+      (let [name (conn-data "name")
+            new-connections (stor/delete-connection! name)
+            old-conn-list-table (select frame [:#conn-list-table])
+            new-conn-list-table (build-connection-list-table new-connections)]
+        (replace! (.getParent old-conn-list-table) old-conn-list-table new-conn-list-table)))))
 
 
 (defn on-btn-connect-click
@@ -160,7 +167,7 @@
                :content (vertical-panel :id :panel
                                         :border 4
                                         :items [
-                                                (build-connection-list-table connections)
+                                                (scrollable (build-connection-list-table connections))
                                                 (horizontal-panel :border 4
                                                                   :items [
                                                                           btn-add

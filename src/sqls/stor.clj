@@ -50,11 +50,22 @@
   [conn-data]
   (let [connections (load-connections!)
         connections-without-new (remove #(= (% "name") (conn-data "name")) connections)
-        connections-with-new (cons conn-data connections-without-new)]
+        keyfn (fn [conn-data] [(conn-data "name")
+                               (conn-data "class")
+                               (conn-data "desc")])
+        connections-with-new (sort-by keyfn (cons conn-data connections-without-new))]
     (println "connections-with-new:" connections-with-new)
     (save-connections! connections-with-new)
     connections-with-new))
 
+
+(defn delete-connection!
+  "Delete connection by name."
+  [name]
+  (let [connections (load-connections!)
+        connections-without-deleted (remove #(= (% "name") name) connections)]
+    (save-connections! connections-without-deleted)
+    connections-without-deleted))
 
 
 
