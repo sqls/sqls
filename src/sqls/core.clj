@@ -7,6 +7,7 @@
 
 (defn -main
   [& args]
+  (native!)
   (invoke-later
     (let [settings (stor/load-settings!)
           connections (stor/load-connections!)
