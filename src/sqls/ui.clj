@@ -17,6 +17,13 @@
    :conn-data conn})
 
 
+(defn build-connection-list-model
+  "Return model for UI table based on connection list."
+  [connections]
+  [:columns [:name :desc :class]
+   :rows (map build-connection-list-item connections)])
+
+
 (defn build-connection-list-table
   "Create a UI component that contains list of connections, bo be added to respective container.
   Parameter connections contains a list of conn-data maps, this parameter can be nil."
@@ -24,8 +31,7 @@
   (let [t (table
             :id :conn-list-table
             :preferred-size [480 :by 320]
-            :model [:columns [:name :desc :class]
-                    :rows (map build-connection-list-item connections)])]
+            :model (build-connection-list-model connections))]
     t))
 
 
@@ -33,6 +39,21 @@
   "Just close the dialog"
   [e]
   (dispose! e))
+
+
+(defn set-conn-list-frame-bindings!
+  [frame]
+  (let [conn-list-table (select frame [:#conn-list-table])
+        btn-connect (select frame [:#btn-connect])
+        btn-delete (select frame [:#btn-delete])]
+    (assert (not= conn-list-table nil))
+    (assert (not= btn-connect nil))
+    (assert (not= btn-delete nil))
+    (b/bind
+      (b/selection conn-list-table)
+      (b/transform (fn [s] (not= s nil)))
+      (b/property btn-connect :enabled?)
+      (b/property btn-delete :enabled?))))  
 
 
 (defn on-btn-add-connection-click
@@ -44,7 +65,6 @@
   2. Replace connections list in parent frame.
   3. Close add connection dialog."
   [conn-list-frame e]
-  (println "conn-list-frame" conn-list-frame)
   (let [
         root (to-root e)
         conn-name (value (select root [:#name]))
@@ -56,13 +76,9 @@
                    "jdbc-conn-str" conn-jdbc-conn-str
                    "desc" conn-desc}
         new-connections (stor/add-connection! conn-data)
-        old-conn-list-table (select conn-list-frame [:#conn-list-table])
-        _ (println "old-conn-list-table" old-conn-list-table)
-        new-conn-list-table (build-connection-list-table new-connections)
-        _ (println "new-conn-list-table" new-conn-list-table)
+        conn-list-table (select conn-list-frame [:#conn-list-table])
         ]
-    (replace! (.getParent old-conn-list-table) old-conn-list-table new-conn-list-table)
-    ; (pack! conn-list-frame)
+    (config! conn-list-table :model (build-connection-list-model new-connections))
     (dispose! e)
     )
   )
@@ -98,9 +114,9 @@
 
 
 (defn on-btn-add-click
+  "Add connection button, conn list frame."
   [e]
-  (let [
-        add-connection-win (build-add-connection-ui (to-root e))]
+  (let [add-connection-win (build-add-connection-ui (to-root e))]
     (show! add-connection-win)
   )
 )
@@ -128,9 +144,8 @@
     (if (not= conn-data nil)
       (let [name (conn-data "name")
             new-connections (stor/delete-connection! name)
-            old-conn-list-table (select frame [:#conn-list-table])
-            new-conn-list-table (build-connection-list-table new-connections)]
-        (replace! (.getParent old-conn-list-table) old-conn-list-table new-conn-list-table)))))
+            conn-list-table (select frame [:#conn-list-table])]
+        (config! conn-list-table :model (build-connection-list-model new-connections))))))
 
 
 (defn on-btn-connect-click
@@ -147,21 +162,6 @@
   (let [conn-data (get-selected-conn-data conn-list-frame)]
     (println "conn-data:" conn-data)
     (create-worksheet! conn-data)))
-
-
-(defn set-conn-list-frame-bindings!
-  [frame]
-  (let [conn-list-table (select frame [:#conn-list-table])
-        btn-connect (select frame [:#btn-connect])
-        btn-delete (select frame [:#btn-delete])]
-    (assert (not= conn-list-table nil))
-    (assert (not= btn-connect nil))
-    (assert (not= btn-delete nil))
-    (b/bind
-      (b/selection conn-list-table)
-      (b/transform (fn [s] (not= s nil)))
-      (b/property btn-connect :enabled?)
-      (b/property btn-delete :enabled?))))  
 
 
 (defn create-login-ui
@@ -185,8 +185,7 @@
                                         :items [
                                                 (scrollable (build-connection-list-table connections))
                                                 (horizontal-panel :border 4
-                                                                  :items [
-                                                                          btn-add
+                                                                  :items [btn-add
                                                                           btn-delete
                                                                           btn-connect])])
                :on-close :exit)]
