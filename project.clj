@@ -11,7 +11,9 @@
                  [org.xerial/sqlite-jdbc "3.7.2"]
                  [seesaw "1.4.4"]
                  ]
-  :main ^:skip-aot sqls.core
+  ; :main ^:skip-aot sqls.core
+  :main sqls.core
+  :java-source-paths ["src"]
   :target-path "target/%s"
   :plugins [[codox "0.6.6"]]
   :profiles {:uberjar {:aot :all}})

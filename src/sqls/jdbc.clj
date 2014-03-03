@@ -3,7 +3,13 @@
   "Encapsulate JDBC stuff, expose trivial API.
   All JDBC interaction should be routed via this module
   (or in future through other modules in this namespace)."
-  (:require clojure.java.jdbc))
+  (:require clojure.java.jdbc)
+  (:import java.net.URL)
+  (:import java.net.URLClassLoader)
+  (:import java.sql.Driver)
+  (:import java.sql.DriverManager)
+  (:import sqls.driver.DriverShim)
+)
 
 
 (defn connect!
@@ -12,8 +18,18 @@
   "
   [conn-data]
   (let [conn-str (conn-data "jdbc-conn-str")
-        conn-class (conn-data "class")]
-    (let [driver-class (Class/forName conn-class)] (println "driver:" driver-class))
+        conn-class (conn-data "class")
+        conn-jar (conn-data "jar")]
+    (if (not= conn-jar nil)
+      (let [url (java.net.URL. (str "file://" conn-jar))  ; TODO: create correct URL
+            url-class-loader (java.net.URLClassLoader. (into-array [url]))
+            cls (.loadClass url-class-loader conn-class)]
+        (let [orig-driver (cast java.sql.Driver (.newInstance cls)) ; ugly way to create instance
+              shim-driver (sqls.driver.DriverShim. orig-driver)]
+          (java.sql.DriverManager/registerDriver shim-driver)
+        )
+      )
+      (Class/forName conn-class))
     (clojure.java.jdbc/get-connection {:connection-uri conn-str})))
 
 

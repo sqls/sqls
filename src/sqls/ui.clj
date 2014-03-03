@@ -68,10 +68,12 @@
   (let [
         root (to-root e)
         conn-name (value (select root [:#name]))
+        conn-jar (value (select root [:#jar]))
         conn-class (value (select root [:#class]))
         conn-jdbc-conn-str (value (select root [:#jdbc-conn-str]))
         conn-desc (value (select root [:#desc]))
         conn-data {"name" conn-name
+                   "jar" conn-jar
                    "class" conn-class
                    "jdbc-conn-str" conn-jdbc-conn-str
                    "desc" conn-desc}
@@ -96,9 +98,10 @@
                     :vgap 10
                     :items [
                             "Name" (text :id :name)
+                            "Driver JAR File (optional)" (text :id :jar)
                             "Driver Class" (text :id :class)
                             "JDBC Connection String" (text :id :jdbc-conn-str)
-                            "Description" (text :id :desc)])
+                            "Description (optional)" (text :id :desc)])
                   (horizontal-panel
                     :items [
                       (button :id :cancel :text "Cancel" :listen [:action on-btn-add-connection-cancel])
