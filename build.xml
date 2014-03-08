@@ -1,0 +1,20 @@
+<project>
+<property environment="env"/>
+
+<taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask"/>
+
+<target name="bundle">
+    <bundleapp outputdirectory="target"
+               name="SQLs"
+               displayname="SQLs"
+               identifier="cx.hell.sqls"
+               shortversion="0.1.0"
+               applicationCategory="public.app-category.developer-tools"
+               mainclassname="sqls.core">
+
+        <classpath file="./target/sqls-0.1.0-SNAPSHOT-standalone.jar"/>
+        <!-- <runtime dir="${env.JAVA_HOME}"/> -->
+        <option value="-Dapple.laf.useScreenMenuBar=true"/>
+    </bundleapp>
+</target>
+</project>
