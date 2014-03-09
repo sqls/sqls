@@ -1,8 +1,12 @@
 
 (ns sqls.worksheet
-  (:require [sqls.ui :as ui]
-            [sqls.ui.worksheet :as ui-worksheet]
-            sqls.jdbc))
+  (:use [clojure.string :only [trim]])
+  (:require
+    [sqls.ui :as ui]
+    [sqls.ui.worksheet :as ui-worksheet]
+    [sqls.util :as util]
+    sqls.jdbc
+    ))
 
 
 (defn create-worksheet
@@ -41,12 +45,20 @@
     (ui-worksheet/show-results! frame columns rows)))
 
 
+(defn fix-sql
+  "Cleanup sql before running it. Expects trimmed sql."
+  [sql]
+  (if (util/endswith sql ";")
+    (subs sql 0 (- (count sql) 1))
+    sql))
+
+
 (defn execute!
   "Execute current SQL command from given worksheet.
   Is SQL returns rows, then fetch some rows and display them.
   "
   [worksheet]
-  (let [sql (ui-worksheet/get-sql (worksheet :frame))
+  (let [sql (fix-sql (trim (ui-worksheet/get-sql (worksheet :frame))))
         conn (worksheet :conn)]
     (let [cursor (sqls.jdbc/execute! conn sql)]
       (if (not= cursor nil)
