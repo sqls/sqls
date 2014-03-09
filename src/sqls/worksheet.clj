@@ -7,9 +7,9 @@
 
 (defn create-worksheet
   "Create worksheet data, including worksheet frame.
-  
+
   Worksheet data structure contains following keys:
-  
+
   - frame - the ui frame,
   - conn-data - specification of connection parameters as map,
   - conn - the connection itself, created after connecting.
@@ -34,7 +34,9 @@
   "Display results from cursor in worksheet frame."
   [worksheet cursor]
   (let [columns (first cursor)
-        rows (rest cursor)
+        rows-lazy (rest cursor)
+        rows-semi-strict (take 1024 rows-lazy)
+        rows [rows-semi-strict rows-lazy]
         frame (worksheet :frame)]
     (ui-worksheet/show-results! frame columns rows)))
 
@@ -55,7 +57,7 @@
   "Executed by frame on Ctrl-Enter press."
   [worksheet]
   (execute! worksheet))
-  
+
 
 (defn create-and-show-worksheet!
   "Create and show worksheet, intiate connecting, return worksheet data structure."
@@ -66,5 +68,4 @@
     (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
     (ui-worksheet/show! (:frame worksheet))
     worksheet))
-
 

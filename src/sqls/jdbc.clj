@@ -118,6 +118,13 @@
       (connect-with-auto! conn-data))))
 
 
+(defn close!
+  "Close connection."
+  [conn]
+  (assert (not= conn nil))
+  (.close conn))
+
+
 (defn execute!
   "Execute SQL on connection.
   This function should accept both row-returning and non-row-returning statements
@@ -127,9 +134,7 @@
   This functions returns a cursor of query results or nil if this SQL command does not
   return rows."
   [conn sql]
-  (println "about to execute sql on connection")
-  (println "conn:" conn)
-  (println "sql:" sql)
+  (assert (not= conn nil))
   (let [stmt (clojure.java.jdbc/prepare-statement conn sql)
         has-result-set (.execute stmt)]
     (if has-result-set

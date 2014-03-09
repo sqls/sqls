@@ -2,6 +2,7 @@
 (ns sqls.ui.worksheet
   (:use [clojure.string :only (join split-lines trim)])
   (:require seesaw.core)
+  (:require seesaw.core)
   (:require seesaw.rsyntax)
   (:require seesaw.keystroke)
   (:import javax.swing.KeyStroke))
@@ -16,7 +17,7 @@
 (defn create-worksheet-frame
   "Create worksheet frame.
   Frame contains following widgets:
-  
+
   - :sql - text are with SQL statements,
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
@@ -28,9 +29,24 @@
                                                   :rows 25
                                                   :listen [:key-pressed on-query-text-area-key-press])
         results-panel (seesaw.core/vertical-panel :id :results-panel
-                                                  :preferred-size [0 :by 400])
-        worksheet-frame (seesaw.core/frame :title "SQL Worksheet"
-                                 :content (seesaw.core/vertical-panel :items [query-text-area results-panel]))]
+                                                  :preferred-size [600 :by 400])
+        menu-panel (seesaw.core/horizontal-panel :id :menu-panel
+                                                 :items [
+                                                         (seesaw.core/button :id :new
+                                                                             :icon (seesaw.icon/icon "new.png"))
+                                                         (seesaw.core/button :id :save
+                                                                             :icon (seesaw.icon/icon "floppy.png"))
+                                                         (seesaw.core/button :id :open
+                                                                             :icon (seesaw.icon/icon "open.png"))
+                                                         ])
+        center-panel (seesaw.core/vertical-panel :items [query-text-area results-panel])
+        south-panel (seesaw.core/horizontal-panel :items ["Connecting..."])
+        border-panel (seesaw.core/border-panel :north menu-panel
+                                               :center center-panel
+                                               :south south-panel)
+        worksheet-frame (seesaw.core/frame
+                          :title "SQL Worksheet"
+                          :content border-panel)]
     (seesaw.core/pack! worksheet-frame)
     worksheet-frame
     )
@@ -62,7 +78,7 @@
 
 (defn extend-nonempty-lines-range
   "Return a range (that is, pair of line numbers) that include adjacent non-empty lines.
-  
+
   First see if start can be decreased, and if it can, then return result of calling recursively with decreased start.
   Otherwise see if end can be increased, and again if it can, then return result of calling recursively with increased end.
   Finally if non of above worked, just return [start end].
@@ -104,31 +120,30 @@
     (println "start line of block:" start)
     (println "end line of block:" end)
     block-text))
-  
+
 
 (defn show-results!
   "Display results inside results panel.
   This involves building results-table UI with accompanying controls.
   Parameters:
-  
+
   - frame - worksheet frame,
   - columns - column names,
-  - rows - a lazy sequence of rows do display.
-  
+  - rows - a pair of semi strict and lazy sequences of rows do display.
+
+  Scroll view is being configured so that if user scrolls close to the end of the table, new
+  rows are fetched from second element of rows pair.
   "
   [frame columns rows]
-  (let [results-table (seesaw.core/scrollable (seesaw.core/table :model [:columns columns
-                                                             :rows rows]))
+  (let [
+        [strict-rows lazy-rows] rows
+        results-table (seesaw.core/scrollable (seesaw.core/table :model [:columns columns
+                                                                         :rows strict-rows]))
         results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
-    (println "removing from:" results-panel)
-    (println "objects to remove:" to-remove)
+    ; (println "strict rows count:" (count strict-rows))
+    ; (println "lazy rows count:" (count lazy-rows))  ; this obviously shouldn't happen
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
     (seesaw.core/add! results-panel results-table)))
-  
-  
-  
-  
-  
-  
-  
+
+
