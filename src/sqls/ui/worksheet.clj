@@ -29,7 +29,13 @@
                                                   :rows 25
                                                   :listen [:key-pressed on-query-text-area-key-press])
         results-panel (seesaw.core/vertical-panel :id :results-panel
-                                                  :preferred-size [600 :by 400])
+                                                  :preferred-size [800 :by 400])
+        log-text (seesaw.core/text :id :log :multi-line? true :editable? false)
+        log-panel (seesaw.core/vertical-panel :id :log-panel
+                                              :items [log-text])
+        tabs-panel (seesaw.core/tabbed-panel :id :tabs
+                                       :tabs [{:title "Results" :content results-panel}
+                                              {:title "Log" :content log-panel}])
         menu-panel (seesaw.core/horizontal-panel :id :menu-panel
                                                  :items [
                                                          (seesaw.core/button :id :new
@@ -38,9 +44,17 @@
                                                                              :icon (seesaw.icon/icon "floppy.png"))
                                                          (seesaw.core/button :id :open
                                                                              :icon (seesaw.icon/icon "open.png"))
+                                                         (seesaw.core/button :id :explain
+                                                                             :text "Explain plan")
+                                                         (seesaw.core/button :id :execute
+                                                                             :text "Execute")
+                                                         (seesaw.core/button :id :commit
+                                                                             :text "Commit")
+                                                         (seesaw.core/button :id :rollback
+                                                                             :text "Rollback")
                                                          ])
-        center-panel (seesaw.core/vertical-panel :items [query-text-area results-panel])
-        south-panel (seesaw.core/horizontal-panel :items ["Connecting..."])
+        center-panel (seesaw.core/vertical-panel :items [query-text-area tabs-panel])
+        south-panel (seesaw.core/horizontal-panel :items [""])
         border-panel (seesaw.core/border-panel :north menu-panel
                                                :center center-panel
                                                :south south-panel)
@@ -116,9 +130,6 @@
         [start end] (extend-nonempty-lines-range all-text-lines line-no line-no)
         block-lines (subvec all-text-lines start (inc end))
         block-text (join "\n" block-lines)]
-    (println "caret position:" caret-position)
-    (println "start line of block:" start)
-    (println "end line of block:" end)
     block-text))
 
 
@@ -137,13 +148,31 @@
   [frame columns rows]
   (let [
         [strict-rows lazy-rows] rows
-        results-table (seesaw.core/scrollable (seesaw.core/table :model [:columns columns
-                                                                         :rows strict-rows]))
+        ; _ (println "strict-rows:" strict-rows)
+        ; _ (println "lazy-rows:" lazy-rows)
+        results-table (seesaw.core/table :auto-resize :off
+                                         :model [:columns columns
+                                                 :rows strict-rows])
+        results-table-scrollable (seesaw.core/scrollable results-table)
         results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     ; (println "strict rows count:" (count strict-rows))
     ; (println "lazy rows count:" (count lazy-rows))  ; this obviously shouldn't happen
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
-    (seesaw.core/add! results-panel results-table)))
-
-
+    (seesaw.core/add! results-panel results-table-scrollable)
+    (let [table-column-model (.getColumnModel results-table)
+          column-count (count columns)
+          row-count (count strict-rows)
+          max-column-widths (vec (for [column-index (range column-count)]
+                                   (max 4
+                                        (let [
+                                              column-values (map str (map #(get % column-index) strict-rows))
+                                              column-value-lengths (map count column-values)
+                                              max-column-value-length (apply max column-value-lengths)]
+                                          max-column-value-length))))
+          ]
+      (doall (for [column-index (range column-count)]
+               (let [table-column (.getColumn table-column-model column-index)
+                     column-width (get max-column-widths column-index)]
+                 (.setPreferredWidth table-column (* column-width 10))
+                 ))))))
