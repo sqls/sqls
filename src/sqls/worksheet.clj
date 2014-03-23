@@ -10,18 +10,24 @@
 
 
 (defn create-worksheet
-  "Create worksheet data, including worksheet frame.
+  "Create worksheet atom, including worksheet frame.
 
-  Worksheet data structure contains following keys:
+  Worksheet atom is a structure map which contains following keys:
 
   - frame - the ui frame,
   - conn-data - specification of connection parameters as map,
-  - conn - the connection itself, created after connecting.
+  - conn - the connection itself, created after connecting,
+  - result - result struct map.
+
+  Result is a struct map with following keys:
+
+  - columns - columns,
+  - rows - a pair of semi-strict and lazy sequences of rows.
   "
   [conn-data]
   (let [worksheet-frame (ui-worksheet/create-worksheet-frame)
-        worksheet {:frame worksheet-frame
-                   :conn-data conn-data}]
+        worksheet (atom {:frame worksheet-frame
+                         :conn-data conn-data})]
     worksheet))
 
 
@@ -29,20 +35,23 @@
   "Create JDBC connection for this worksheet.
   Returns worksheet with conn field set."
   [worksheet]
-  (let [conn-data (:conn-data worksheet)
+  (let [conn-data (:conn-data @worksheet)
         conn (sqls.jdbc/connect! conn-data)]
-    (assoc worksheet :conn conn)))
+    (swap! worksheet assoc :conn conn)
+    worksheet))
 
 
 (defn show-results!
   "Display results from cursor in worksheet frame."
   [worksheet cursor]
+  (assert (not= (:frame @worksheet) nil))
   (let [columns (first cursor)
         rows-lazy (rest cursor)
-        rows-semi-strict (take 1024 rows-lazy)
+        rows-semi-strict (take 256 rows-lazy)
         rows [rows-semi-strict rows-lazy]
-        frame (worksheet :frame)]
-    (ui-worksheet/show-results! frame columns rows)))
+        result {:columns columns :rows rows}]
+    (swap! worksheet assoc :result result)
+    (ui-worksheet/show-results! worksheet columns rows)))
 
 
 (defn fix-sql
@@ -58,8 +67,10 @@
   Is SQL returns rows, then fetch some rows and display them.
   "
   [worksheet]
-  (let [sql (fix-sql (trim (ui-worksheet/get-sql (worksheet :frame))))
-        conn (worksheet :conn)]
+  (let [frame (:frame @worksheet)
+        _ (assert (not= frame nil))
+        sql (fix-sql (trim (ui-worksheet/get-sql frame)))
+        conn (@worksheet :conn)]
     (let [cursor (sqls.jdbc/execute! conn sql)]
       (if (not= cursor nil)
         (show-results! worksheet cursor)))))
@@ -76,8 +87,7 @@
   [conn-data]
   (let [worksheet (create-worksheet conn-data)
         connected-worksheet (connect-worksheet! worksheet)
-        frame (:frame worksheet)]
+        frame (:frame @worksheet)]
     (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
-    (ui-worksheet/show! (:frame worksheet))
+    (ui-worksheet/show! frame)
     worksheet))
-

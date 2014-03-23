@@ -2,16 +2,11 @@
 (ns sqls.ui.worksheet
   (:use [clojure.string :only (join split-lines trim)])
   (:require seesaw.core)
-  (:require seesaw.core)
+  (:require seesaw.table)
   (:require seesaw.rsyntax)
   (:require seesaw.keystroke)
-  (:import javax.swing.KeyStroke))
-
-
-(defn on-query-text-area-key-press
-  "Handle key press in query text area of SQL Worksheet."
-  [e]
-)
+  (:import javax.swing.KeyStroke)
+  (:import javax.swing.JTable))
 
 
 (defn create-worksheet-frame
@@ -26,8 +21,7 @@
   (let [query-text-area (seesaw.rsyntax/text-area :id :sql
                                                   :syntax :sql
                                                   :columns 80
-                                                  :rows 25
-                                                  :listen [:key-pressed on-query-text-area-key-press])
+                                                  :rows 25)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
         log-text (seesaw.core/text :id :log :multi-line? true :editable? false)
@@ -79,6 +73,7 @@
   "Set Ctrl-Enter handler on frame. Handler should expect no parameters (all needed parameters
   should be baked in using partial or similar means."
   [frame handler]
+  (assert (not= frame nil))
   (let [ctrl-enter-keystroke (seesaw.keystroke/keystroke "control ENTER")
         sql-text-area (seesaw.core/select frame [:#sql])]
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press handler ctrl-enter-keystroke))))
@@ -133,6 +128,79 @@
     block-text))
 
 
+(defn set-on-scroll-handler
+  "Add handler to fetch more results on scroll."
+  [frame handler]
+  (let [scrollable (seesaw.core/select frame [:#results-table-scrollable])
+        viewport (.getViewport scrollable)]
+    (seesaw.core/listen viewport :change handler)))
+
+
+(defn get-scroll-position
+  "Return scroll position as float."
+  [viewport]
+  (assert (not= viewport nil))
+  (let [view-size (.getViewSize viewport)
+        view-rect (.getViewRect viewport)
+        view-rect-pos (float (.y view-rect))
+        view-height (float (.height view-size))
+        view-rect-height (float (.height view-rect))
+        view-rect-pos-max (- view-height view-rect-height)
+        view-scroll-position (if (<= view-rect-pos-max 0.0) 0.0 (/ view-rect-pos view-rect-pos-max))]
+    view-scroll-position))
+
+
+(defn append-row!
+  [^javax.swing.JTable results-table row]
+  (let [row-count (seesaw.table/row-count results-table)]
+    (seesaw.table/insert-at! results-table row-count row)))
+
+
+(defn append-rows!
+  "Append rows to worksheet results table.
+
+  Params:
+
+  - new-rows is a seq of new rows to be appended."
+  [worksheet new-rows]
+  (println (format "appending %d rows to table" (count new-rows)))
+  (let [frame (:frame @worksheet)
+        _ (assert (not= frame nil))
+        results-table (seesaw.core/select frame [:#results-table])
+        _ (assert (not= results-table nil))]
+    (doall (map (partial append-row! results-table) new-rows))))
+
+
+(defn fetch-more-results!
+  "Try to load more results from lazy sequence of results."
+  [worksheet]
+  (let [result (:result @worksheet)
+        _ (assert (not= result nil))
+        [strict-rows lazy-rows] (result :rows)
+        strict-rows-count (count strict-rows)
+        _ (println (format "strict-rows-count: %d" strict-rows-count))
+        new-count (+ strict-rows-count 256)
+        new-strict-rows (take new-count lazy-rows)
+        _ (println (format "new-strict-rows count: %d" (count new-strict-rows)))
+        _ (assert (>= (count new-strict-rows) (count strict-rows)))
+        new-rows [new-strict-rows lazy-rows]
+        new-result (assoc result :rows new-rows)]
+    (swap! worksheet assoc :result new-result)
+    (let [new-new-rows (nthrest new-strict-rows (count strict-rows))]
+      (println (format "new-new-rows count: %d" (count new-new-rows)))
+      (append-rows! worksheet new-new-rows))))
+
+
+(defn on-results-table-scrolled
+  [worksheet-atom e]
+  (let [frame (:frame @worksheet-atom)
+        _ (assert (not= frame nil))
+        viewport (.getViewport (seesaw.core/select frame [:#results-table-scrollable]))
+        scroll-pos (get-scroll-position viewport)]
+    (if (> scroll-pos 0.75)
+      (fetch-more-results! worksheet-atom))))
+
+
 (defn show-results!
   "Display results inside results panel.
   This involves building results-table UI with accompanying controls.
@@ -145,19 +213,17 @@
   Scroll view is being configured so that if user scrolls close to the end of the table, new
   rows are fetched from second element of rows pair.
   "
-  [frame columns rows]
-  (let [
+  [worksheet-atom columns rows]
+  (let [frame (:frame @worksheet-atom)
+        _ (assert (not= frame nil))
         [strict-rows lazy-rows] rows
-        ; _ (println "strict-rows:" strict-rows)
-        ; _ (println "lazy-rows:" lazy-rows)
-        results-table (seesaw.core/table :auto-resize :off
+        results-table (seesaw.core/table :id :results-table
+                                         :auto-resize :off
                                          :model [:columns columns
                                                  :rows strict-rows])
-        results-table-scrollable (seesaw.core/scrollable results-table)
+        results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
         results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
-    ; (println "strict rows count:" (count strict-rows))
-    ; (println "lazy rows count:" (count lazy-rows))  ; this obviously shouldn't happen
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
     (seesaw.core/add! results-panel results-table-scrollable)
     (let [table-column-model (.getColumnModel results-table)
@@ -174,5 +240,6 @@
       (doall (for [column-index (range column-count)]
                (let [table-column (.getColumn table-column-model column-index)
                      column-width (get max-column-widths column-index)]
-                 (.setPreferredWidth table-column (* column-width 10))
-                 ))))))
+                 (.setPreferredWidth table-column (* column-width 10))))))
+    (set-on-scroll-handler frame (partial on-results-table-scrolled worksheet-atom))))
+
