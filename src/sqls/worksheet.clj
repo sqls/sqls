@@ -36,9 +36,12 @@
   Returns worksheet with conn field set."
   [worksheet]
   (let [conn-data (:conn-data @worksheet)
-        conn (sqls.jdbc/connect! conn-data)]
-    (swap! worksheet assoc :conn conn)
-    worksheet))
+        conn-or-error (sqls.jdbc/connect! conn-data)]
+    (if (not= (conn-or-error 0) nil)
+      (let [conn (conn-or-error 0)]
+        (swap! worksheet assoc :conn conn)
+        worksheet)
+      (ui/show-error! (conn-or-error 1) (conn-or-error 2)))))
 
 
 (defn show-results!
@@ -86,8 +89,14 @@
   "Create and show worksheet, intiate connecting, return worksheet data structure."
   [conn-data]
   (let [worksheet (create-worksheet conn-data)
-        connected-worksheet (connect-worksheet! worksheet)
-        frame (:frame @worksheet)]
-    (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
-    (ui-worksheet/show! frame)
-    worksheet))
+        frame (:frame @worksheet)
+        connected-worksheet (connect-worksheet! worksheet)]
+    (assert (not= worksheet nil))
+    (assert (not= frame nil))
+    (if (not= connected-worksheet nil)
+      (do
+       (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
+       (ui-worksheet/show! frame)
+       nil))))
+
+

@@ -107,15 +107,24 @@
   2. otherwise find all jar files in various locations,
      and try to load given class from each and every jar file found.
 
-  TODO: handle errors.
+  Returns vector of three elements:
+
+  - connection - nil if could not connect,
+  - error message - nil if connected,
+  - description - nil if connected, otherwise optionally verbose error description.
   "
   [conn-data]
+  (assert (not= conn-data nil))
   (let [conn-str (conn-data "jdbc-conn-str")
         conn-class (conn-data "class")
         conn-jar (conn-data "jar")]
-    (if (not (blank? conn-jar))
-      (connect-with-path! conn-data)
-      (connect-with-auto! conn-data))))
+    (try
+      (let [conn (if (not (blank? conn-jar))
+                   (connect-with-path! conn-data)
+                   (connect-with-auto! conn-data))]
+        [conn nil nil])
+      (catch java.security.PrivilegedActionException e [nil (str e) nil])
+      (catch java.sql.SQLException e [nil (str e) nil]))))
 
 
 (defn close!

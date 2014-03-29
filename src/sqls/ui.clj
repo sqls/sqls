@@ -152,3 +152,8 @@
     frame))
 
 
+(defn show-error!
+  "Show error message."
+  [msg desc]
+  (alert msg))
+
