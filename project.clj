@@ -17,5 +17,6 @@
   :target-path "target/%s"
   :plugins [[codox "0.6.7"]
             [lein-ancient "0.5.5"]]
+  :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}}
   :jvm-opts ["-Xms4M" "-Xmx1G" "-XX:-PrintGC"])
