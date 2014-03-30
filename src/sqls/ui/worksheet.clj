@@ -79,6 +79,18 @@
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press handler ctrl-enter-keystroke))))
 
 
+(defn set-on-commit-handler
+  [frame handler]
+  (let [btn-commit (seesaw.core/select frame [:#commit])]
+    (seesaw.core/listen btn-commit :action (fn [e] (handler)))))
+
+
+(defn set-on-rollback-handler
+  [frame handler]
+  (let [btn-rollback (seesaw.core/select frame [:#rollback])]
+    (seesaw.core/listen btn-rollback :action (fn [e] (handler)))))
+
+
 (defn show!
   "Show worksheet frame."
   [frame]

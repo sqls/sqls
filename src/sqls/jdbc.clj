@@ -122,6 +122,7 @@
       (let [conn (if (not (blank? conn-jar))
                    (connect-with-path! conn-data)
                    (connect-with-auto! conn-data))]
+        (.setAutoCommit conn false)
         [conn nil nil])
       (catch java.security.PrivilegedActionException e [nil (str e) nil])
       (catch java.sql.SQLException e [nil (str e) nil]))))
