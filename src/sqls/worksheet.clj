@@ -85,6 +85,40 @@
   (execute! worksheet))
 
 
+(defn commit!
+  [worksheet]
+  (assert (not= worksheet nil))
+  (let [conn (@worksheet :conn)]
+    (assert (not= conn nil))
+    (.commit conn)))
+
+
+(defn rollback!
+  [worksheet]
+  (assert (not= @worksheet nil))
+  (let [conn (@worksheet :conn)]
+    (assert (not= conn nil))
+    (.rollback conn)))
+
+
+(defn new!
+  [worksheet]
+  (println "new!" worksheet))
+
+
+(defn save!
+  [worksheet]
+  (let [frame (@worksheet :frame)
+        path (ui-worksheet/choose-save-file frame)
+        contents (ui-worksheet/get-contents frame)]
+    (spit path contents)))
+
+
+(defn open!
+  [worksheet]
+  (println "open!" worksheet))
+
+
 (defn create-and-show-worksheet!
   "Create and show worksheet, intiate connecting, return worksheet data structure."
   [conn-data]
@@ -95,8 +129,14 @@
     (assert (not= frame nil))
     (if (not= connected-worksheet nil)
       (do
-       (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
-       (ui-worksheet/show! frame)
-       nil))))
+        (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
+        (ui-worksheet/set-on-commit-handler frame (partial commit! connected-worksheet))
+        (ui-worksheet/set-on-rollback-handler frame (partial rollback! connected-worksheet))
+        (ui-worksheet/set-on-execute-handler frame (partial on-ctrl-enter connected-worksheet))
+        (ui-worksheet/set-on-new-handler frame (partial new! connected-worksheet))
+        (ui-worksheet/set-on-save-handler frame (partial save! connected-worksheet))
+        (ui-worksheet/set-on-open-handler frame (partial open! connected-worksheet))
+        (ui-worksheet/show! frame)
+        nil))))
 
 

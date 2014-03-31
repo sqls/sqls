@@ -1,12 +1,14 @@
 
 (ns sqls.ui.worksheet
   (:use [clojure.string :only (join split-lines trim)])
+  (:require seesaw.chooser)
   (:require seesaw.core)
-  (:require seesaw.table)
-  (:require seesaw.rsyntax)
   (:require seesaw.keystroke)
-  (:import javax.swing.KeyStroke)
-  (:import javax.swing.JTable))
+  (:require seesaw.rsyntax)
+  (:require seesaw.table)
+  (:import javax.swing.JFrame)
+  (:import javax.swing.JTable)
+  (:import javax.swing.KeyStroke))
 
 
 (defn create-worksheet-frame
@@ -61,6 +63,12 @@
 )
 
 
+(defn dispose-worksheet-frame!
+  "Dispose worksheet frame."
+  [frame]
+  (seesaw.core/dispose! frame))
+
+
 (defn on-key-press
   "Key press handler for sql text area. Calls first parameter (handler), meant to be curried."
   [handler keystroke e]
@@ -89,6 +97,37 @@
   [frame handler]
   (let [btn-rollback (seesaw.core/select frame [:#rollback])]
     (seesaw.core/listen btn-rollback :action (fn [e] (handler)))))
+
+
+(defn set-on-execute-handler
+  "Set Execute button handler."
+  [frame handler]
+  (let [btn-execute (seesaw.core/select frame [:#execute])]
+    (assert (not= btn-execute nil))
+    (seesaw.core/listen btn-execute :action (fn [e] (handler)))))
+
+
+(defn set-on-new-handler
+  "Set New button handler."
+  [frame handler]
+  (let [btn-new (seesaw.core/select frame [:#new])]
+    (assert (not= btn-new nil))
+    (seesaw.core/listen btn-new :action (fn [e] (handler)))))
+
+
+(defn set-on-save-handler
+  "Set Save button handler."
+  [frame handler]
+  (let [btn-save (seesaw.core/select frame [:#save])]
+    (assert (not= btn-save nil))
+    (seesaw.core/listen btn-save :action (fn [e] (handler)))))
+
+
+(defn set-on-open-handler
+  [frame handler]
+  (let [btn-open (seesaw.core/select frame [:#open])]
+    (assert (not= btn-open nil))
+    (seesaw.core/listen btn-open :action (fn [e] (handler)))))
 
 
 (defn show!
@@ -138,6 +177,15 @@
         block-lines (subvec all-text-lines start (inc end))
         block-text (join "\n" block-lines)]
     block-text))
+
+
+(defn get-contents
+  "Get text from worksheet."
+  ^String
+  [^javax.swing.JFrame frame]
+  (assert (not= frame nil))
+  (-> (seesaw.core/select frame [:#sql])
+      (seesaw.core/value)))
 
 
 (defn set-on-scroll-handler
@@ -254,4 +302,11 @@
                      column-width (get max-column-widths column-index)]
                  (.setPreferredWidth table-column (* column-width 10))))))
     (set-on-scroll-handler frame (partial on-results-table-scrolled worksheet-atom))))
+
+
+(defn choose-save-file
+  "Show save dialog, return absolute path as string."
+  [frame]
+  (-> (seesaw.chooser/choose-file frame :type :save)
+      (.getAbsolutePath)))
 
