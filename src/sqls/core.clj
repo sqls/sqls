@@ -31,10 +31,18 @@
   "
   [conn-data]
   (try
-    (let [conn (sqls.jdbc/connect! conn-data)]
-      (sqls.jdbc/close! conn)
-      {:ok true})
+    (let [conn-info (sqls.jdbc/connect! conn-data)
+          ^java.sql.Connection conn (conn-info :conn)
+          ^String err-msg (conn-info :msg)
+          ^String err-desc (conn-info :desc)]
+      (if (not= conn nil)
+        (sqls.jdbc/close! conn))
+      (if (not= conn nil)
+        {:ok true :desc nil}
+        {:ok false :desc (format "%s\n%s" err-msg err-desc)}
+      ))
     (catch Exception e
+      (.printStackTrace e)
       {:ok false :desc (str e)})))
 
 

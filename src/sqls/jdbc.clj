@@ -1,8 +1,8 @@
 
 (ns sqls.jdbc
   "Encapsulate JDBC stuff, expose trivial API.
-  All JDBC interaction should be routed via this module
-  (or in future through other modules in this namespace)."
+  All JDBC interaction should be routed via this ns."
+
   (:use [clojure.string :only [blank?]])
 
   (:require clojure.java.jdbc)
@@ -36,7 +36,7 @@
 
 (defn connect-with-urls!
   "Try to connect using URLClassLoader initialized with given url."
-  [conn-data urls]
+  [^clojure.lang.IPersistentMap conn-data urls]
   (let [conn-class (conn-data "class")
         conn-str (conn-data "jdbc-conn-str")
         url-class-loader (java.net.URLClassLoader. (into-array urls))
@@ -50,7 +50,8 @@
 
 (defn connect-with-absolute-path!
   "Connect with absolute path."
-  [conn-data path]
+  [conn-data
+   ^String path]
   (let [url (java.net.URL. "file" "" path)]
     (connect-with-urls! conn-data [url])))
 
@@ -93,6 +94,17 @@
       (connect-with-auto-jars! conn-data))))
 
 
+(defn exception-to-stacktrace
+  "Pretty text from exception stack trace."
+  ^String
+  [^java.lang.Throwable e]
+  (let [w (java.io.StringWriter.)
+        pw (java.io.PrintWriter. w)]
+    (.printStackTrace e pw)
+    (let [^String st (str w)]
+      st)))
+
+
 (defn connect!
   "Create JDBC connection.
 
@@ -105,32 +117,37 @@
 
   1. try to just load driver,
   2. otherwise find all jar files in various locations,
-     and try to load given class from each and every jar file found.
+  and try to load given class from each and every jar file found.
 
-  Returns vector of three elements:
+  Returns hash map of three elements (nil elements are optional):
 
-  - connection - nil if could not connect,
-  - error message - nil if connected,
-  - description - nil if connected, otherwise optionally verbose error description.
+  - conn - nil if could not connect,
+  - msg - nil if connected,
+  - desc - nil if connected, otherwise optionally verbose error description.
   "
-  [conn-data]
+  ^clojure.lang.IPersistentMap
+  [^clojure.lang.IPersistentMap conn-data]
   (assert (not= conn-data nil))
-  (let [conn-str (conn-data "jdbc-conn-str")
-        conn-class (conn-data "class")
-        conn-jar (conn-data "jar")]
+  (let [^String conn-str (conn-data "jdbc-conn-str")
+        ^String conn-class (conn-data "class")
+        ^String conn-jar (conn-data "jar")]
     (try
-      (let [conn (if (not (blank? conn-jar))
-                   (connect-with-path! conn-data)
-                   (connect-with-auto! conn-data))]
+      (let [^java.sql.Connection conn (if (not (blank? conn-jar))
+                                        (connect-with-path! conn-data)
+                                        (connect-with-auto! conn-data))]
         (.setAutoCommit conn false)
-        [conn nil nil])
-      (catch java.security.PrivilegedActionException e [nil (str e) nil])
-      (catch java.sql.SQLException e [nil (str e) nil]))))
+        {:conn conn})
+      (catch java.security.PrivilegedActionException e {:conn nil
+                                                        :msg (str e)
+                                                        :desc (exception-to-stacktrace e)})
+      (catch java.sql.SQLException e {:conn nil
+                                      :msg (str e)
+                                      :desc (exception-to-stacktrace e)}))))
 
 
 (defn close!
   "Close connection."
-  [conn]
+  [^java.sql.Connection conn]
   (assert (not= conn nil))
   (.close conn))
 
@@ -143,7 +160,8 @@
 
   This functions returns a cursor of query results or nil if this SQL command does not
   return rows."
-  [conn sql]
+  [^java.sql.Connection conn
+   ^String sql]
   (assert (not= conn nil))
   (let [stmt (clojure.java.jdbc/prepare-statement conn sql)
         has-result-set (.execute stmt)]

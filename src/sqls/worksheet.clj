@@ -34,14 +34,19 @@
 (defn connect-worksheet!
   "Create JDBC connection for this worksheet.
   Returns worksheet with conn field set."
-  [worksheet]
+  [^clojure.lang.Atom worksheet]
+  (assert (not= worksheet nil))
   (let [conn-data (:conn-data @worksheet)
-        conn-or-error (sqls.jdbc/connect! conn-data)]
-    (if (not= (conn-or-error 0) nil)
-      (let [conn (conn-or-error 0)]
+        conn-or-error (sqls.jdbc/connect! conn-data)
+        ^java.sql.Connection conn (conn-or-error :conn)
+        ^String msg (conn-or-error :msg)
+        ^String desc (conn-or-error :desc)
+        ]
+    (if (not= conn nil)
+      (do
         (swap! worksheet assoc :conn conn)
         worksheet)
-      (ui/show-error! (conn-or-error 1) (conn-or-error 2)))))
+      (ui/show-error! msg desc))))
 
 
 (defn show-results!
@@ -80,6 +85,11 @@
         (show-results! worksheet cursor)))))
 
 
+(defn explain!
+  [worksheet]
+  (println "explain!"))
+
+
 (defn on-ctrl-enter
   "Executed by frame on Ctrl-Enter press."
   [worksheet]
@@ -89,7 +99,7 @@
 (defn commit!
   [worksheet]
   (assert (not= worksheet nil))
-  (let [conn (@worksheet :conn)]
+  (let [^java.sql.Connection conn (@worksheet :conn)]
     (assert (not= conn nil))
     (.commit conn)))
 
@@ -97,7 +107,7 @@
 (defn rollback!
   [worksheet]
   (assert (not= @worksheet nil))
-  (let [conn (@worksheet :conn)]
+  (let [^java.sql.Connection conn (@worksheet :conn)]
     (assert (not= conn nil))
     (.rollback conn)))
 
@@ -131,6 +141,7 @@
     (if (not= connected-worksheet nil)
       (do
         (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
+        (ui-worksheet/set-on-explain-handler frame (partial explain! connected-worksheet))
         (ui-worksheet/set-on-commit-handler frame (partial commit! connected-worksheet))
         (ui-worksheet/set-on-rollback-handler frame (partial rollback! connected-worksheet))
         (ui-worksheet/set-on-execute-handler frame (partial on-ctrl-enter connected-worksheet))
