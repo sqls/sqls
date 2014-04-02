@@ -20,3 +20,5 @@
   :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}}
   :jvm-opts ["-Xms4M" "-Xmx1G" "-XX:-PrintGC"])
+  :profiles {:uberjar {:aot :all}
+             :dev {:global-vars {*warn-on-reflection* true}}}
