@@ -310,3 +310,17 @@
   (-> (seesaw.chooser/choose-file frame :type :save)
       (.getAbsolutePath)))
 
+
+(defn log
+  "Add log message to status panel."
+  [^javax.swing.JFrame frame
+   ^String message]
+  (let [^javax.swing.JContainer log-tab (seesaw.core/select frame [:#log-panel])
+        ^javax.swing.JComponent log-text (seesaw.core/select log-tab [:#log])]
+    (assert (not= log-tab nil))
+    (assert (not= log-text nil))
+    (let [^String old-text (seesaw.core/text log-text)
+          ^String new-text (str old-text message)]
+      (seesaw.core/text! log-text new-text))))
+
+

@@ -70,10 +70,11 @@
   Is SQL returns rows, then fetch some rows and display them.
   "
   [worksheet]
-  (let [frame (:frame @worksheet)
+  (let [^javax.swing.JFrame frame (:frame @worksheet)
         _ (assert (not= frame nil))
-        sql (fix-sql (trim (ui-worksheet/get-sql frame)))
-        conn (@worksheet :conn)]
+        ^String sql (fix-sql (trim (ui-worksheet/get-sql frame)))
+        ^java.sql.Connection conn (@worksheet :conn)]
+    (ui-worksheet/log frame (format "Executing \"%s\"" sql))
     (let [cursor (sqls.jdbc/execute! conn sql)]
       (if (not= cursor nil)
         (show-results! worksheet cursor)))))
