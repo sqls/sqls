@@ -9,20 +9,22 @@
 
 (defn path-to-absolute-path
   "Return absolute path."
-  [p]
+  [^String p]
   (let [f (java.io.File. p)]
     (.getAbsolutePath f)))
 
 
 (defn startswith
   "String .startsWith so we don't call Java directly."
-  [s p]
+  [^String s
+   ^String p]
   (.startsWith s p))
 
 
 (defn endswith
   "Strnig .endsWith so we don't call Java directly."
-  [s e]
+  [^String s
+   ^String e]
   (.endsWith s e))
 
 
@@ -40,7 +42,7 @@
 
 
 (defn get-absolute-path
-  [f]
+  [^java.io.File f]
   (.getAbsolutePath f))
 
 
@@ -50,7 +52,7 @@
   Returns seq absolute paths as strings.
   "
   [d]
-  (let [df (if (instance? java.io.File d) d (java.io.File. d))
+  (let [^java.io.File df (if (instance? java.io.File d) d (java.io.File. d))
         filenames (seq (.list df))
         join-df-and-filename (fn [f] (path-join [df f]))
         absolute-filenames (map join-df-and-filename filenames)]

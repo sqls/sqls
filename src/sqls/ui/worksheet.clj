@@ -50,7 +50,7 @@
                                                                              :text "Rollback")
                                                          ])
         center-panel (seesaw.core/vertical-panel :items [query-text-area tabs-panel])
-        south-panel (seesaw.core/horizontal-panel :items [""])
+        south-panel (seesaw.core/horizontal-panel :items [" "])
         border-panel (seesaw.core/border-panel :north menu-panel
                                                :center center-panel
                                                :south south-panel)
@@ -85,6 +85,14 @@
   (let [ctrl-enter-keystroke (seesaw.keystroke/keystroke "control ENTER")
         sql-text-area (seesaw.core/select frame [:#sql])]
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press handler ctrl-enter-keystroke))))
+
+
+(defn set-on-explain-handler
+  [frame handler]
+  (assert (not= frame nil))
+  (let [btn-explain (seesaw.core/select frame [:#explain])]
+    (assert (not= btn-explain nil))
+    (seesaw.core/listen btn-explain :action (fn [e] (handler)))))
 
 
 (defn set-on-commit-handler
@@ -168,6 +176,7 @@
 
 (defn get-sql
   "Extract current SQL text from frame."
+  ^String
   [frame]
   (let [all-text (seesaw.core/value (seesaw.core/select frame [:#sql]))
         caret-position (seesaw.core/config (seesaw.core/select frame [:#sql]) :caret-position)
@@ -274,15 +283,15 @@
   rows are fetched from second element of rows pair.
   "
   [worksheet-atom columns rows]
-  (let [frame (:frame @worksheet-atom)
+  (let [^javax.seing.JFrame frame (:frame @worksheet-atom)
         _ (assert (not= frame nil))
         [strict-rows lazy-rows] rows
-        results-table (seesaw.core/table :id :results-table
+        ^javax.swing.JTable results-table (seesaw.core/table :id :results-table
                                          :auto-resize :off
                                          :model [:columns columns
                                                  :rows strict-rows])
         results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
-        results-panel (seesaw.core/select frame [:#results-panel])
+        ^javax.swing.JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
     (seesaw.core/add! results-panel results-table-scrollable)
@@ -309,6 +318,13 @@
   [frame]
   (-> (seesaw.chooser/choose-file frame :type :save)
       (.getAbsolutePath)))
+
+
+(defn show-explain-plan!
+  "Show explain plan."
+  [^javax.swing.JFrame frame
+   ^String explain-plan]
+  (println "displaying explain plan"))
 
 
 (defn log
