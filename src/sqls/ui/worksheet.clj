@@ -28,7 +28,8 @@
                                                   :preferred-size [800 :by 400])
         log-text (seesaw.core/text :id :log :multi-line? true :editable? false)
         log-panel (seesaw.core/vertical-panel :id :log-panel
-                                              :items [log-text])
+                                              :items [(seesaw.core/scrollable log-text
+                                                                              :id :log-scrollable)])
         tabs-panel (seesaw.core/tabbed-panel :id :tabs
                                        :tabs [{:title "Results" :content results-panel}
                                               {:title "Log" :content log-panel}])
