@@ -14,10 +14,15 @@
 
   Worksheet atom is a structure map which contains following keys:
 
-  - frame - the ui frame,
-  - conn-data - specification of connection parameters as map,
-  - conn - the connection itself, created after connecting,
-  - result - result struct map.
+  - :frame - the ui frame,
+  - :conn-data - specification of connection parameters as map,
+  - :conn - the connection itself, created after connecting,
+  - :result - result struct map,
+  - :agent - agent used to run queries and other IO jobs that are meant to run one-by-one,
+  - :state - state of the worksheet, atomically changed from UI, allowed states:
+
+    - :idle,
+    - :busy - a query is running, worksheet is waiting for results.
 
   Result is a struct map with following keys:
 
@@ -26,8 +31,11 @@
   "
   [conn-data]
   (let [worksheet-frame (ui-worksheet/create-worksheet-frame)
+        worksheet-agent (agent {})
         worksheet (atom {:frame worksheet-frame
-                         :conn-data conn-data})]
+                         :conn-data conn-data
+                         :agent worksheet-agent
+                         :state :idle})]
     worksheet))
 
 
@@ -70,19 +78,42 @@
     sql))
 
 
+(defn swap-worksheet-state
+  [from-state to-state worksheet-atom-value]
+  (let [^clojure.lang.Keyword current-state (worksheet-atom-value :state)]
+    (if (= current-state from-state)
+      (do
+        (println (format "ok, setting state to %s" to-state))
+        (assoc worksheet-atom-value :state to-state))
+      (throw (Exception. (format "can't change worksheet state from %s to %s, because current state is %s" from-state to-state current-state))))))
+
+
 (defn execute!
-  "Execute current SQL command from given worksheet.
-  Is SQL returns rows, then fetch some rows and display them.
+  "Job executed in worksheet agent.
+  Worksheet state must be busy when entering this function.
+  Worksheet state must stay busy when this function is executing.
+  Last thing this function does is to set state back to idle.
+
+  For now worksheet agent state stays unchanged.
   "
-  [worksheet]
+  [worksheet-agent-state
+   ^clojure.lang.Atom worksheet
+   ^String sql]
+  (println "execute!")
   (let [^javax.swing.JFrame frame (:frame @worksheet)
-        _ (assert (not= frame nil))
-        ^String sql (fix-sql (trim (ui-worksheet/get-sql frame)))
         ^java.sql.Connection conn (@worksheet :conn)]
-    (ui-worksheet/log frame (format "Executing \"%s\"" sql))
-    (let [cursor (sqls.jdbc/execute! conn sql)]
-      (if (not= cursor nil)
-        (show-results! worksheet cursor)))))
+    (assert (not= frame nil))
+    (assert (not= conn nil))
+    (ui-worksheet/log frame (format "Executing \"%s\"...\n" sql))
+    (try
+      (let [cursor (sqls.jdbc/execute! conn sql)]
+        (if (not= cursor nil)
+          (show-results! worksheet cursor))
+        (ui-worksheet/log frame "Done\n"))
+      (catch java.sql.SQLException e
+        (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))))
+    (swap! worksheet (partial swap-worksheet-state :busy :idle)))
+  worksheet-agent-state)
 
 
 (defn explain!
@@ -91,9 +122,28 @@
 
 
 (defn on-ctrl-enter
-  "Executed by frame on Ctrl-Enter press."
-  [worksheet]
-  (execute! worksheet))
+  "Executed by frame on Ctrl-Enter press.
+
+  SQL statement is executed only if worksheet status is idle.
+  Worksheet status is changed to busy (using atom based transaction - so there's no race possible).
+  If :idle -> :busy change is successful, then new job is submitted to agent.
+  "
+  [^clojure.lang.Atom worksheet]
+  (assert (not= worksheet nil))
+  (let [^clojure.lang.Agent worksheet-agent (@worksheet :agent)
+        swap-idle-to-busy (partial swap-worksheet-state :idle :busy)]
+    (try
+      (do
+        (swap! worksheet swap-idle-to-busy)
+        (println "state changed")
+        (let [^String sql (-> (@worksheet :frame)
+                              (ui-worksheet/get-sql)
+                              (trim)
+                              (fix-sql))]
+          ; now we can proceed - send the job to agent
+          (send-off worksheet-agent execute! worksheet sql)))
+      (catch Exception e
+        (println "couldn't change state:" e)))))
 
 
 (defn commit!
