@@ -9,6 +9,13 @@
     ))
 
 
+(defn worksheet-agent-error-handler
+  "Error handler for worksheet agents."
+  [^clojure.lang.Agent a
+   ^Throwable e]
+  (println (format "agent %s got exception %s" a e)))
+
+
 (defn create-worksheet
   "Create worksheet atom, including worksheet frame.
 
@@ -31,7 +38,8 @@
   "
   [conn-data]
   (let [worksheet-frame (ui-worksheet/create-worksheet-frame)
-        worksheet-agent (agent {})
+        worksheet-agent (agent {}
+                               :error-handler worksheet-agent-error-handler)
         worksheet (atom {:frame worksheet-frame
                          :conn-data conn-data
                          :agent worksheet-agent
