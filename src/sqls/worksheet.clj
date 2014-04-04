@@ -113,11 +113,13 @@
     (assert (not= frame nil))
     (assert (not= conn nil))
     (ui-worksheet/log frame (format "Executing \"%s\"...\n" sql))
+    (ui-worksheet/status-text frame "Executing...")
     (try
       (let [cursor (sqls.jdbc/execute! conn sql)]
         (if (not= cursor nil)
           (show-results! worksheet cursor))
-        (ui-worksheet/log frame "Done\n"))
+        (ui-worksheet/log frame "Done\n")
+        (ui-worksheet/status-text frame "Done"))
       (catch java.sql.SQLException e
         (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))))
     (swap! worksheet (partial swap-worksheet-state :busy :idle)))
