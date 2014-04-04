@@ -51,7 +51,8 @@
                                                                              :text "Rollback")
                                                          ])
         center-panel (seesaw.core/vertical-panel :items [query-text-area tabs-panel])
-        south-panel (seesaw.core/horizontal-panel :items [" "])
+        south-panel (seesaw.core/horizontal-panel :items [(seesaw.core/label :id :status-bar-text
+                                                                             :text " ")])
         border-panel (seesaw.core/border-panel :north menu-panel
                                                :center center-panel
                                                :south south-panel)
@@ -341,3 +342,12 @@
       (seesaw.core/text! log-text new-text))))
 
 
+(defn status-text
+  "Set status bar text."
+  [^javax.swing.JFrame frame
+   ^String message]
+  (assert (not= frame nil))
+  (assert (not= message nil))
+  (let [status-bar-text (seesaw.core/select frame [:#status-bar-text])]
+    (assert (not= status-bar-text nil))
+    (seesaw.core/text! status-bar-text message)))
