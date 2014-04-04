@@ -289,29 +289,30 @@
         _ (assert (not= frame nil))
         [strict-rows lazy-rows] rows
         ^javax.swing.JTable results-table (seesaw.core/table :id :results-table
-                                         :auto-resize :off
-                                         :model [:columns columns
-                                                 :rows strict-rows])
+                                                             :auto-resize :off
+                                                             :model [:columns columns
+                                                                     :rows strict-rows])
         results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
         ^javax.swing.JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
     (seesaw.core/add! results-panel results-table-scrollable)
-    (let [table-column-model (.getColumnModel results-table)
-          column-count (count columns)
-          row-count (count strict-rows)
-          max-column-widths (vec (for [column-index (range column-count)]
-                                   (max 4
-                                        (let [
-                                              column-values (map str (map #(get % column-index) strict-rows))
-                                              column-value-lengths (map count column-values)
-                                              max-column-value-length (apply max column-value-lengths)]
-                                          max-column-value-length))))
-          ]
-      (doall (for [column-index (range column-count)]
-               (let [table-column (.getColumn table-column-model column-index)
-                     column-width (get max-column-widths column-index)]
-                 (.setPreferredWidth table-column (* column-width 10))))))
+    (if (> (count strict-rows) 0)
+      (let [table-column-model (.getColumnModel results-table)
+            column-count (count columns)
+            row-count (count strict-rows)
+            max-column-widths (vec (for [column-index (range column-count)]
+                                     (max 4
+                                          (let [
+                                                column-values (map str (map #(get % column-index) strict-rows))
+                                                column-value-lengths (map count column-values)
+                                                max-column-value-length (apply max column-value-lengths)]
+                                            max-column-value-length))))
+            ]
+        (doall (for [column-index (range column-count)]
+                 (let [table-column (.getColumn table-column-model column-index)
+                       column-width (get max-column-widths column-index)]
+                   (.setPreferredWidth table-column (* column-width 10)))))))
     (set-on-scroll-handler frame (partial on-results-table-scrolled worksheet-atom))))
 
 
