@@ -315,6 +315,15 @@
     (set-on-scroll-handler frame (partial on-results-table-scrolled worksheet-atom))))
 
 
+(defn clear-results!
+  "Clear results pane."
+  [^javax.swing.JFrame frame]
+  (assert (not= frame nil))
+  (let [^javax.swing.JPanel results-panel (seesaw.core/select frame [:#results-panel]) 
+        to-remove (seesaw.core/select frame [:#results-panel :> :*])]
+    (doall (map (partial seesaw.core/remove! results-panel) to-remove))))
+
+
 (defn choose-save-file
   "Show save dialog, return absolute path as string."
   [frame]

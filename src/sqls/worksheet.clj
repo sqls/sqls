@@ -114,6 +114,7 @@
     (assert (not= conn nil))
     (ui-worksheet/log frame (format "Executing \"%s\"...\n" sql))
     (ui-worksheet/status-text frame "Executing...")
+    (ui-worksheet/clear-results! frame)
     (try
       (let [cursor (sqls.jdbc/execute! conn sql)]
         (if (not= cursor nil)
