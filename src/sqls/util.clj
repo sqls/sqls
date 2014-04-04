@@ -32,11 +32,12 @@
   "Join arguments as path. This should be expressed as fold.
   Takes seq of path elements, returns them joined as absolute path."
   [parts]
-  (let [base (first parts)
+  (let [^String base (first parts)
         others (rest parts)]
     (if (empty? others)
       base
-      (let [new-base (.getAbsolutePath (java.io.File. base (first others)))
+      (let [^String first-other (first others)
+            ^String new-base (.getAbsolutePath (java.io.File. base first-other))
             new-others (rest others)]
         (path-join (cons new-base new-others))))))
 
