@@ -107,7 +107,6 @@
   [worksheet-agent-state
    ^clojure.lang.Atom worksheet
    ^String sql]
-  (println "execute!")
   (let [^javax.swing.JFrame frame (:frame @worksheet)
         ^java.sql.Connection conn (@worksheet :conn)]
     (assert (not= frame nil))
@@ -122,7 +121,9 @@
         (ui-worksheet/log frame "Done\n")
         (ui-worksheet/status-text frame "Done"))
       (catch java.sql.SQLException e
-        (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))))
+        (do
+          (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))
+          (ui-worksheet/status-text frame "Error"))))
     (swap! worksheet (partial swap-worksheet-state :busy :idle)))
   worksheet-agent-state)
 
