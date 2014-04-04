@@ -171,7 +171,6 @@
   "Get line number from text and index."
   [text position]
   (let [before-position-text (subs text 0 position)
-        _ (println "text before position:" before-position-text)
         is-newline (fn [c] (= (str c) "\n"))]
     (count (filter is-newline before-position-text))))
 
@@ -276,11 +275,11 @@
   "Display results inside results panel.
   This involves building results-table UI with accompanying controls.
   Parameters:
-
+  
   - frame - worksheet frame,
   - columns - column names,
   - rows - a pair of semi strict and lazy sequences of rows do display.
-
+  
   Scroll view is being configured so that if user scrolls close to the end of the table, new
   rows are fetched from second element of rows pair.
   "
