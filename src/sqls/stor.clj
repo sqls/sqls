@@ -35,16 +35,16 @@
 
 (defn add-connection!
   "Add connection to connection list.
-  
+
   Parameters:
-  
+
   - conn-data is a map with following keys:
-  
+
     - name - name of the connection,
     - jdbc-conn-str - jdbc connection URI,
     - desc - description,
     - driver - JDBC connection driver name.
-  
+
   Returns new connection list.
   "
   [conn-data]
@@ -68,7 +68,15 @@
     connections-without-deleted))
 
 
+(defn load-worksheet-state!
+  "Read current worksheet state.
+  Takes connection name. For now all connections are worksheets (1-1 relationship) in terms of state.
+  This obviously is needs to be designed - either we don't allow many worksheets of one conn,
+  or we have many states per conn. Either way it's to be chosen later.
 
+  Returns a map with worksheet state.
 
-
-
+  State file is called state.json and it's for now located in current directory.
+  "
+  [^String conn-name]
+  {})
