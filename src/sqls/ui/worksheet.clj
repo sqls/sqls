@@ -41,8 +41,8 @@
                                                                              :icon (seesaw.icon/icon "floppy.png"))
                                                          (seesaw.core/button :id :open
                                                                              :icon (seesaw.icon/icon "open.png"))
-                                                         (seesaw.core/button :id :explain
-                                                                             :text "Explain plan")
+                                                         ; (seesaw.core/button :id :explain
+                                                         ;                     :text "Explain plan")
                                                          (seesaw.core/button :id :execute
                                                                              :text "Execute")
                                                          (seesaw.core/button :id :commit
@@ -88,12 +88,12 @@
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press handler ctrl-enter-keystroke))))
 
 
-(defn set-on-explain-handler
-  [frame handler]
-  (assert (not= frame nil))
-  (let [btn-explain (seesaw.core/select frame [:#explain])]
-    (assert (not= btn-explain nil))
-    (seesaw.core/listen btn-explain :action (fn [e] (handler)))))
+; (defn set-on-explain-handler
+;   [frame handler]
+;   (assert (not= frame nil))
+;   (let [btn-explain (seesaw.core/select frame [:#explain])]
+;     (assert (not= btn-explain nil))
+;     (seesaw.core/listen btn-explain :action (fn [e] (handler)))))
 
 
 (defn set-on-commit-handler

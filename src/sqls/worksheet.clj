@@ -116,9 +116,9 @@
   worksheet-agent-state)
 
 
-(defn explain!
-  [worksheet]
-  (println "explain!"))
+; (defn explain!
+;   [worksheet]
+;   (println "explain!"))
 
 
 (defn on-ctrl-enter
@@ -191,7 +191,7 @@
     (if (not= connected-worksheet nil)
       (do
         (ui-worksheet/set-ctrl-enter-handler frame (partial on-ctrl-enter connected-worksheet))
-        (ui-worksheet/set-on-explain-handler frame (partial explain! connected-worksheet))
+        ; (ui-worksheet/set-on-explain-handler frame (partial explain! connected-worksheet))
         (ui-worksheet/set-on-commit-handler frame (partial commit! connected-worksheet))
         (ui-worksheet/set-on-rollback-handler frame (partial rollback! connected-worksheet))
         (ui-worksheet/set-on-execute-handler frame (partial on-ctrl-enter connected-worksheet))
