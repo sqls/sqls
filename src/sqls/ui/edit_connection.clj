@@ -16,7 +16,8 @@
                             to-root
                             value
                             vertical-panel
-                            ]]))
+                            ]])
+  (:require seesaw.mig))
 
 
 (defn on-btn-save-connection-cancel
@@ -83,6 +84,7 @@
       (show-test-success! (to-root e))
       (show-test-failure! (to-root e) (:desc result)))))
 
+
 (defn create-edit-connection-frame
   "Create add-or-edit connection dialog.
 
@@ -99,35 +101,38 @@
         conn-str (get conn-data "jdbc-conn-str")
         conn-desc (get conn-data "desc")
         label-texts ["Name"
-                "Driver JAR file (optional)"
-                "Driver Class"
-                "JDBC Connection String"
-                "Description (optional)"]
+                     "Driver JAR file (optional)"
+                     "Driver Class"
+                     "JDBC Connection String"
+                     "Description (optional)"]
         labels (map #(label :text % :border 2 :preferred-size [100 :by 0]) label-texts)
         default-field-options {:preferred-size [0 :by 400]}
-        fields [
-                (text :id :name :text conn-name :preferred-size [400 :by 0])
+        fields [(text :id :name :text conn-name :preferred-size [400 :by 0])
                 (text :id :jar :text conn-jar)
                 (text :id :class :text conn-class)
                 (text :id :jdbc-conn-str :text conn-str)
-                (text :id :desc :text conn-desc)
-                ]
-        buttons [
-                 (button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])
+                (text :id :desc :text conn-desc)]
+        buttons [(button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])
                  (button :id :test :text "Test" :listen [:action (partial on-btn-test-connection test-conn!)])
-                 (button :id :ok :text "Ok" :listen [:action (partial on-btn-save-connection-ok conn-list-frame save! conn-data)])
-                 ]
-        form-items (interleave labels fields)]
+                 (button :id :ok :text "Ok" :listen [:action (partial on-btn-save-connection-ok conn-list-frame save! conn-data)])]
+        label-to-mig-panel-item (fn [w] [w])
+        field-to-mig-panel-item (fn [w] [w "grow, wrap"])
+        label-mig-panel-items (map label-to-mig-panel-item labels)
+        field-mig-panel-items (map field-to-mig-panel-item fields)
+        button-mig-panel-items [[(horizontal-panel :items buttons) "span 2, align right"]] ; only one item that contains vertical-panel and spans all columns
+        mig-panel-items (concat (interleave label-mig-panel-items field-mig-panel-items) button-mig-panel-items)
+        mig-panel-constraints ["fillx" "[grow 0][grow]"]]
     (assert (= (count labels) (count fields)))
-    (println "create-edit-connection-frame")
+    ; (println "mig panel items:" mig-panel-items)
     (->
-      (custom-dialog
-          :title "SQLS: Add connection"
-          :content (vertical-panel :border 4
-                                   :items [
-                                           (grid-panel :columns 2
-                                                       :items form-items)
-                                           (horizontal-panel :id :buttons
-                                                             :items buttons)]))
+      (custom-dialog :title "SQLS: Add connection"
+                     :content (seesaw.mig/mig-panel :items mig-panel-items
+                                                    :constraints mig-panel-constraints))
+          ; :content (vertical-panel :border 4
+          ;                          :items [
+          ;                                  (grid-panel :columns 2
+          ;                                              :items form-items)
+          ;                                  (horizontal-panel :id :buttons
+          ;                                                    :items buttons)]))
       pack!)))
 
