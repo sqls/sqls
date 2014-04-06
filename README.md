@@ -1,36 +1,23 @@
 # sqls
 
-FIXME: description
+sqls is simple SQL client for programmers and engineers.
+It's goal is to make running SQL queries easier.
 
 ## Installation
 
-Download from http://example.com/FIXME.
+1. Make sure you've got fairly recent Java Runtime Environment installed (you can get one at http://java.oracle.com/),
+2. Download sqls.jar,
+3. Put it where you like.
 
 ## Usage
 
-FIXME: explanation
-
-    $ java -jar sqls-0.1.0-standalone.jar [args]
-
-## Options
-
-FIXME: listing of options this app accepts.
-
-## Examples
-
-...
-
-### Bugs
-
-...
-
-### Any Other Sections
-### That You Think
-### Might be Useful
+Double click sqls.jar.
+If .jar files on your system are not associated with Java, then you might have to choose "Open with...".
+You can also run it by hand by executing `java -jar sqls.jar`.
 
 ## License
 
-Copyright © 2014 FIXME
+Copyright © 2014 Maciej Pietrzak
 
 Distributed under the Eclipse Public License either version 1.0 or (at
 your option) any later version.
