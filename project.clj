@@ -1,6 +1,6 @@
 (defproject sqls "0.1.0-SNAPSHOT"
   :description "SQLS"
-  :url "https://bitbucket.org/mpietrzak/sqls"
+  :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
@@ -11,7 +11,6 @@
                  [org.xerial/sqlite-jdbc "3.7.2"]
                  [seesaw "1.4.4"]
                  ]
-  ; :main ^:skip-aot sqls.core
   :main sqls.core
   :java-source-paths ["src"]
   :target-path "target/%s"
