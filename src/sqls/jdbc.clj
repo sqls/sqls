@@ -35,8 +35,16 @@
 
 
 (defn connect-with-urls!
-  "Try to connect using URLClassLoader initialized with given url."
+  "Try to connect using URLClassLoader initialized with given url.
+
+  Parameters:
+
+  - conn-data - defines connection metadata,
+  - urls - nonempty coll of urls.
+  "
   [^clojure.lang.IPersistentMap conn-data urls]
+  (assert (not= urls nil))
+  (assert (> (count urls) 0))
   (let [conn-class (conn-data "class")
         conn-str (conn-data "jdbc-conn-str")
         url-class-loader (java.net.URLClassLoader. (into-array urls))
@@ -81,7 +89,9 @@
   [conn-data]
   (let [jar-paths (util/find-driver-jars)
         jar-urls (map (fn [p] (java.net.URL. "file" "" p)) jar-paths)]
-    (connect-with-urls! conn-data jar-urls)))
+    (if (> (count jar-urls) 0)
+      (connect-with-urls! conn-data jar-urls)
+      nil)))
 
 
 (defn connect-with-auto!
@@ -135,8 +145,12 @@
       (let [^java.sql.Connection conn (if (not (blank? conn-jar))
                                         (connect-with-path! conn-data)
                                         (connect-with-auto! conn-data))]
-        (.setAutoCommit conn false)
-        {:conn conn})
+        (if (not= conn nil)
+          (do
+            (.setAutoCommit conn false)
+            {:conn conn})
+          {:conn nil
+           :msg "Connection failed"}))
       (catch java.security.PrivilegedActionException e {:conn nil
                                                         :msg (str e)
                                                         :desc (exception-to-stacktrace e)})
