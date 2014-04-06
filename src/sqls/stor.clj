@@ -61,7 +61,8 @@
 
 (defn delete-connection!
   "Delete connection by name."
-  [name]
+  [^String name]
+  (assert (not= name nil))
   (let [connections (load-connections!)
         connections-without-deleted (remove #(= (% "name") name) connections)]
     (save-connections! connections-without-deleted)
