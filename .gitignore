@@ -1,6 +1,8 @@
 /target
 /classes
 /checkouts
+/.idea
+/doc/codox
 pom.xml
 pom.xml.asc
 *.jar
@@ -9,4 +11,3 @@ pom.xml.asc
 /.nrepl-port
 connections.json
 .*.swp
-doc/codox
