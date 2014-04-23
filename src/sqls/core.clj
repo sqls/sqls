@@ -5,6 +5,7 @@
   (:require [sqls.stor :as stor])
   (:require sqls.jdbc)
   (:require sqls.worksheet)
+  (:import java.sql.Connection)
   )
 
 
@@ -32,7 +33,7 @@
   [conn-data]
   (try
     (let [conn-info (sqls.jdbc/connect! conn-data)
-          ^java.sql.Connection conn (conn-info :conn)
+          ^Connection conn (conn-info :conn)
           ^String err-msg (conn-info :msg)
           ^String err-desc (conn-info :desc)]
       (if (not= conn nil)

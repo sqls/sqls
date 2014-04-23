@@ -24,6 +24,7 @@
                                                   :syntax :sql
                                                   :columns 80
                                                   :rows 25)
+        query-text-area-scrollable (seesaw.core/scrollable query-text-area)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
         log-text (seesaw.core/text :id :log :multi-line? true :editable? false)
@@ -50,7 +51,7 @@
                                                          (seesaw.core/button :id :rollback
                                                                              :text "Rollback")
                                                          ])
-        center-panel (seesaw.core/vertical-panel :items [query-text-area tabs-panel])
+        center-panel (seesaw.core/vertical-panel :items [query-text-area-scrollable tabs-panel])
         south-panel (seesaw.core/horizontal-panel :items [(seesaw.core/label :id :status-bar-text
                                                                              :text " ")])
         border-panel (seesaw.core/border-panel :north menu-panel
@@ -74,7 +75,7 @@
 (defn on-key-press
   "Key press handler for sql text area. Calls first parameter (handler), meant to be curried."
   [handler keystroke e]
-  (let [event-key-stroke (javax.swing.KeyStroke/getKeyStrokeForEvent e)]
+  (let [event-key-stroke (KeyStroke/getKeyStrokeForEvent e)]
     (if (= keystroke event-key-stroke)
       (handler))))
 
@@ -137,7 +138,7 @@
   [frame handler]
   (let [btn-open (seesaw.core/select frame [:#open])]
     (assert (not= btn-open nil))
-    (seesaw.core/listen btn-open :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-open :action (fn [_] (handler)))))
 
 
 (defn show!
