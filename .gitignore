@@ -11,3 +11,4 @@ pom.xml.asc
 /.nrepl-port
 connections.json
 .*.swp
+sqls.iml
