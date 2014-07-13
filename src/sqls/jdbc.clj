@@ -8,15 +8,15 @@
   (:require clojure.java.jdbc)
   (:require [sqls.util :as util])
 
-  (:import java.net.URL)
+  (:import java.net.URL (java.sql PreparedStatement))
   (:import java.net.URLClassLoader)
   (:import java.security.PrivilegedActionException)
   (:import java.sql.Driver)
   (:import java.sql.DriverManager)
   (:import java.sql.SQLException)
 
-  (:import sqls.driver.DriverShim)
-)
+  (:import clojure.lang.IPersistentMap)
+  (:import sqls.driver.DriverShim))
 
 
 (defn connect-without-jar!
@@ -135,8 +135,8 @@
   - msg - nil if connected,
   - desc - nil if connected, otherwise optionally verbose error description.
   "
-  ^clojure.lang.IPersistentMap
-  [^clojure.lang.IPersistentMap conn-data]
+  ^IPersistentMap
+  [^IPersistentMap conn-data]
   (assert (not= conn-data nil))
   (let [^String conn-str (conn-data "jdbc-conn-str")
         ^String conn-class (conn-data "class")

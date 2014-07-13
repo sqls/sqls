@@ -1,5 +1,5 @@
 
-(ns sqls.ui.edit-connection
+(ns sqls.ui.conn-edit
   "UI code for add or edit connection"
   (:use [seesaw.core :only [
                             alert

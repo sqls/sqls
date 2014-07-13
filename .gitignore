@@ -12,3 +12,4 @@ pom.xml.asc
 connections.json
 .*.swp
 sqls.iml
+worksheetdata.json

@@ -2,11 +2,14 @@
   (:gen-class)
   (:use seesaw.core)
   (:use sqls.ui)
+  (:require [clojure.java.io :as io])
+  (:require sqls.ui.conn-list)
+  (:require sqls.ui.conn-edit)
   (:require [sqls.stor :as stor])
   (:require sqls.jdbc)
   (:require sqls.worksheet)
-  (:import java.sql.Connection)
-  )
+  (:require [sqls.ui :as ui])
+  (:import java.sql.Connection))
 
 
 (defn save-conn!
@@ -21,7 +24,7 @@
   [conn-list-frame old-conn-data conn-data]
   (let [new-connections (stor/add-connection! conn-data)
         conn-list-table (select conn-list-frame [:#conn-list-table])]
-    (config! conn-list-table :model (build-connection-list-model new-connections))))
+    (config! conn-list-table :model (sqls.ui.conn-list/build-connection-list-model new-connections))))
 
 
 (defn test-conn!
@@ -47,6 +50,19 @@
       {:ok false :desc (str e)})))
 
 
+(defn create-worksheet-handlers
+  "Create and return a map of functions that perform various actions initiated at worksheet
+  that change state outside of worksheet.
+  This is because we don't want worksheet code to access other submodules directly."
+  [conn-data]
+  (println (format "conn-data: %s, conn-data name: %s" conn-data (conn-data "name")))
+  (let [conn-name (conn-data "name")]
+    (assert (not= conn-name nil))
+    {:save-worksheet-data (fn
+                            [worksheet-data]
+                            (stor/save-worksheet-data! conn-name worksheet-data))}))
+
+
 (defn -sqls
   "Run sqls, but don't exit unless exit-on-close? is set. Useful for running in repl."
   ([] (-sqls false))
@@ -56,10 +72,21 @@
     (invoke-later
       (let [settings (stor/load-settings!)
             connections (stor/load-connections!)
-            handlers {:create-worksheet sqls.worksheet/create-and-show-worksheet!
+            handlers {:create-worksheet (fn [conn-data]
+                                          (let [conn-name (conn-data "name")
+                                                worksheet-data (stor/load-worksheet-data! conn-name)
+                                                contents (if worksheet-data (worksheet-data "contents"))]
+                                            (println (format "creating worksheet with contents: %s" contents))
+                                            (sqls.worksheet/create-and-show-worksheet! conn-data contents (create-worksheet-handlers conn-data))))
                       :save-conn save-conn!
-                      :test-conn test-conn!}
-            conn-list-frame (sqls.ui/create-login-ui exit-on-close? handlers settings connections)]
+                      :test-conn test-conn!
+                      :delete-connection! stor/delete-connection!
+                      :about (fn
+                               []
+                               (-> (io/resource "about.txt")
+                                   (slurp)
+                                   (ui/show-about-dialog!)))}
+            conn-list-frame (sqls.ui.conn-list/create-login-ui exit-on-close? handlers settings connections)]
         (pack! conn-list-frame)
         (show! conn-list-frame)))))
 

@@ -6,20 +6,20 @@
   (:require seesaw.keystroke)
   (:require seesaw.rsyntax)
   (:require seesaw.table)
-  (:import javax.swing.JFrame)
-  (:import javax.swing.JTable)
-  (:import javax.swing.KeyStroke))
+  [:import [java.io File]
+           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]]
+  )
 
 
 (defn create-worksheet-frame
   "Create worksheet frame.
   Frame contains following widgets:
 
-  - :sql - text are with SQL statements,
+  - :sql - text with SQL statements,
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
   "
-  []
+  [^String contents]
   (let [query-text-area (seesaw.rsyntax/text-area :id :sql
                                                   :syntax :sql
                                                   :columns 80
@@ -61,6 +61,9 @@
                           :title "SQL Worksheet"
                           :content border-panel)]
     (seesaw.core/pack! worksheet-frame)
+    (println (format "contents: %s" contents))
+    (if contents
+      (seesaw.core/config! query-text-area :text contents))
     worksheet-frame
     )
 )
@@ -152,7 +155,7 @@
 
   First see if start can be decreased, and if it can, then return result of calling recursively with decreased start.
   Otherwise see if end can be increased, and again if it can, then return result of calling recursively with increased end.
-  Finally if non of above worked, just return [start end].
+  Finally if none of above worked, just return [start end].
   "
   [lines start end]
   (let [can-decrease-start (and
@@ -176,8 +179,15 @@
     (count (filter is-newline before-position-text))))
 
 
+(defn get-worksheet-contents
+  "Get everything from worksheet"
+  ^String
+  [^JFrame frame]
+  (seesaw.core/value (seesaw.core/select frame [:#sql])))
+
+
 (defn get-sql
-  "Extract current SQL text from frame."
+  "Extract current SQL statement text from frame."
   ^String
   [frame]
   (let [all-text (seesaw.core/value (seesaw.core/select frame [:#sql]))
@@ -193,7 +203,7 @@
 (defn get-contents
   "Get text from worksheet."
   ^String
-  [^javax.swing.JFrame frame]
+  [^JFrame frame]
   (assert (not= frame nil))
   (-> (seesaw.core/select frame [:#sql])
       (seesaw.core/value)))
@@ -202,14 +212,14 @@
 (defn set-on-scroll-handler
   "Add handler to fetch more results on scroll."
   [frame handler]
-  (let [scrollable (seesaw.core/select frame [:#results-table-scrollable])
-        viewport (.getViewport scrollable)]
+  (let [^JScrollPane scrollable (seesaw.core/select frame [:#results-table-scrollable])
+        ^JViewport viewport (.getViewport scrollable)]
     (seesaw.core/listen viewport :change handler)))
 
 
 (defn get-scroll-position
   "Return scroll position as float."
-  [viewport]
+  [^JViewport viewport]
   (assert (not= viewport nil))
   (let [view-size (.getViewSize viewport)
         view-rect (.getViewRect viewport)
@@ -266,7 +276,8 @@
   [worksheet-atom e]
   (let [frame (:frame @worksheet-atom)
         _ (assert (not= frame nil))
-        viewport (.getViewport (seesaw.core/select frame [:#results-table-scrollable]))
+        ^JScrollPane table-scrollable (seesaw.core/select frame [:#results-table-scrollable])
+        ^JViewport viewport (.getViewport table-scrollable)
         scroll-pos (get-scroll-position viewport)]
     (if (> scroll-pos 0.75)
       (fetch-more-results! worksheet-atom))))
@@ -276,16 +287,16 @@
   "Display results inside results panel.
   This involves building results-table UI with accompanying controls.
   Parameters:
-  
+
   - frame - worksheet frame,
   - columns - column names,
   - rows - a pair of semi strict and lazy sequences of rows do display.
-  
+
   Scroll view is being configured so that if user scrolls close to the end of the table, new
   rows are fetched from second element of rows pair.
   "
   [worksheet-atom columns rows]
-  (let [^javax.seing.JFrame frame (:frame @worksheet-atom)
+  (let [^JFrame frame (:frame @worksheet-atom)
         _ (assert (not= frame nil))
         [strict-rows lazy-rows] rows
         ^javax.swing.JTable results-table (seesaw.core/table :id :results-table
@@ -293,7 +304,7 @@
                                                              :model [:columns columns
                                                                      :rows strict-rows])
         results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
-        ^javax.swing.JPanel results-panel (seesaw.core/select frame [:#results-panel])
+        ^JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
     (seesaw.core/add! results-panel results-table-scrollable)
@@ -318,9 +329,9 @@
 
 (defn clear-results!
   "Clear results pane."
-  [^javax.swing.JFrame frame]
+  [^JFrame frame]
   (assert (not= frame nil))
-  (let [^javax.swing.JPanel results-panel (seesaw.core/select frame [:#results-panel]) 
+  (let [^JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))))
 
@@ -328,33 +339,34 @@
 (defn choose-save-file
   "Show save dialog, return absolute path as string."
   [frame]
-  (-> (seesaw.chooser/choose-file frame :type :save)
+  (-> (^File seesaw.chooser/choose-file frame :type :save)
       (.getAbsolutePath)))
 
 
 (defn show-explain-plan!
   "Show explain plan."
-  [^javax.swing.JFrame frame
+  [^JFrame frame
    ^String explain-plan]
   (println "displaying explain plan"))
 
 
 (defn log
   "Add log message to status panel."
-  [^javax.swing.JFrame frame
+  [^JFrame frame
    ^String message]
-  (let [^javax.swing.JContainer log-tab (seesaw.core/select frame [:#log-panel])
-        ^javax.swing.JComponent log-text (seesaw.core/select log-tab [:#log])]
+  (let [log-tab (seesaw.core/select frame [:#log-panel])
+        log-text (seesaw.core/select log-tab [:#log])]
     (assert (not= log-tab nil))
     (assert (not= log-text nil))
     (let [^String old-text (seesaw.core/text log-text)
           ^String new-text (str old-text message)]
-      (seesaw.core/text! log-text new-text))))
+      (seesaw.core/text! log-text new-text))
+    (seesaw.core/scroll! log-text :to :bottom)))
 
 
 (defn status-text
   "Set status bar text."
-  [^javax.swing.JFrame frame
+  [^JFrame frame
    ^String message]
   (assert (not= frame nil))
   (assert (not= message nil))

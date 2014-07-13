@@ -1,20 +1,30 @@
 <project>
-<property environment="env"/>
 
-<taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask"/>
+    <property environment="env"/>
 
-<target name="bundle">
-    <bundleapp outputdirectory="target"
-               name="SQLs"
-               displayname="SQLs"
-               identifier="cx.hell.sqls"
-               shortversion="0.1.0"
-               applicationCategory="public.app-category.developer-tools"
-               mainclassname="sqls.core">
+    <taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask">
+        <classpath>
+            <pathelement location="lib/appbundler-1.0ea.jar"/>
+        </classpath>
+    </taskdef>
 
-        <classpath file="./target/sqls-0.1.0-SNAPSHOT-standalone.jar"/>
-        <!-- <runtime dir="${env.JAVA_HOME}"/> -->
-        <option value="-Dapple.laf.useScreenMenuBar=true"/>
-    </bundleapp>
-</target>
+    <target name="bundle">
+        <bundleapp executableName="SQLs"
+                   outputdirectory="target"
+                   name="SQLs"
+                   displayname="SQLs"
+                   identifier="cx.hell.sqls"
+                   shortversion="0.1.0"
+                   applicationCategory="public.app-category.developer-tools"
+                   mainclassname="sqls.core"
+                   icon="resources/sqls.icns">
+            <runtime dir="${env.JAVA_HOME}" />
+            <classpath file="target/sqls-0.1.0-SNAPSHOT-standalone.jar"/>
+            <option value="-Dapple.laf.useScreenMenuBar=true"/>
+            <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
+            <option value="-Xms32M" name="Xms"/>
+            <option value="-Xmx1G" name="Xmx"/>
+        </bundleapp>
+    </target>
+
 </project>

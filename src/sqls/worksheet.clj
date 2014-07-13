@@ -6,12 +6,15 @@
     [sqls.ui.worksheet :as ui-worksheet]
     [sqls.util :as util]
     sqls.jdbc
-    ))
+    )
+  (:import clojure.lang.Agent)
+  (:import clojure.lang.Atom)
+  (:import java.sql.Connection))
 
 
 (defn worksheet-agent-error-handler
   "Error handler for worksheet agents."
-  [^clojure.lang.Agent a
+  [^Agent a
    ^Throwable e]
   (println (format "agent %s got exception %s" a e)))
 
@@ -36,25 +39,26 @@
   - columns - columns,
   - rows - a pair of semi-strict and lazy sequences of rows.
   "
-  [conn-data]
-  (let [worksheet-frame (ui-worksheet/create-worksheet-frame)
+  [conn-data contents handlers]
+  (let [worksheet-frame (ui-worksheet/create-worksheet-frame contents)
         worksheet-agent (agent {}
                                :error-handler worksheet-agent-error-handler)
         worksheet (atom {:frame worksheet-frame
                          :conn-data conn-data
                          :agent worksheet-agent
-                         :state :idle})]
+                         :state :idle
+                         :handlers handlers})]
     worksheet))
 
 
 (defn connect-worksheet!
   "Create JDBC connection for this worksheet.
   Returns worksheet with conn field set."
-  [^clojure.lang.Atom worksheet]
+  [^Atom worksheet]
   (assert (not= worksheet nil))
   (let [conn-data (:conn-data @worksheet)
         conn-or-error (sqls.jdbc/connect! conn-data)
-        ^java.sql.Connection conn (conn-or-error :conn)
+        ^Connection conn (conn-or-error :conn)
         ^String msg (conn-or-error :msg)
         ^String desc (conn-or-error :desc)
         ]
@@ -105,10 +109,10 @@
   For now worksheet agent state stays unchanged.
   "
   [worksheet-agent-state
-   ^clojure.lang.Atom worksheet
+   ^Atom worksheet
    ^String sql]
   (let [^javax.swing.JFrame frame (:frame @worksheet)
-        ^java.sql.Connection conn (@worksheet :conn)]
+        ^Connection conn (@worksheet :conn)]
     (assert (not= frame nil))
     (assert (not= conn nil))
     (ui-worksheet/log frame (format "Executing \"%s\"...\n" sql))
@@ -139,10 +143,17 @@
   SQL statement is executed only if worksheet status is idle.
   Worksheet status is changed to busy (using atom based transaction - so there's no race possible).
   If :idle -> :busy change is successful, then new job is submitted to agent.
+
+  Saves worksheet data before trying to execute.
   "
-  [^clojure.lang.Atom worksheet]
+  [^Atom worksheet]
   (assert (not= worksheet nil))
-  (let [^clojure.lang.Agent worksheet-agent (@worksheet :agent)
+  (let [handlers (:handlers @worksheet)
+        frame (:frame @worksheet)
+        save-worksheet-data (:save-worksheet-data handlers)
+        contents (ui-worksheet/get-worksheet-contents frame)]
+    (save-worksheet-data {"contents" contents}))
+  (let [^Agent worksheet-agent (@worksheet :agent)
         swap-idle-to-busy (partial swap-worksheet-state :idle :busy)]
     (try
       (do
@@ -161,7 +172,7 @@
 (defn commit!
   [worksheet]
   (assert (not= worksheet nil))
-  (let [^java.sql.Connection conn (@worksheet :conn)]
+  (let [^Connection conn (@worksheet :conn)]
     (assert (not= conn nil))
     (.commit conn)))
 
@@ -169,7 +180,7 @@
 (defn rollback!
   [worksheet]
   (assert (not= @worksheet nil))
-  (let [^java.sql.Connection conn (@worksheet :conn)]
+  (let [^Connection conn (@worksheet :conn)]
     (assert (not= conn nil))
     (.rollback conn)))
 
@@ -193,9 +204,22 @@
 
 
 (defn create-and-show-worksheet!
-  "Create and show worksheet, intiate connecting, return worksheet data structure."
-  [conn-data]
-  (let [worksheet (create-worksheet conn-data)
+  "Create and show worksheet, intiate connecting, return worksheet data structure.
+
+  Params:
+
+  - conn-data - connection parameters including name and jdbc connection string,
+  - worksheet-data - worksheet data, like contents, scroll position, possibly other (I start with contents and will add more stuff later),
+  - handlers - a map of functions that talk to other submodules, since I don't want to use other submodules directly:
+
+    - :save-worksheet-data - takes one parameter, a map of worksheet data, of which currently one parameter is supported:
+
+      - :contents - worksheet contents
+  "
+  [conn-data
+   worksheet-data
+   handlers]
+  (let [worksheet (create-worksheet conn-data worksheet-data handlers)
         frame (:frame @worksheet)
         connected-worksheet (connect-worksheet! worksheet)]
     (assert (not= worksheet nil))

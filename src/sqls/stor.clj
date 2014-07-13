@@ -1,7 +1,10 @@
 
 (ns sqls.stor
+  "Storage support.
+  Saving and loading of preferences, connection data, worksheet state etc."
   (:use [clojure.tools.logging :only (debug info)])
-  (:require [clojure.data.json :as json]))
+  (:require [clojure.data.json :as json])
+  [:import [java.io IOException]])
 
 
 (defn load-settings!
@@ -69,15 +72,36 @@
     connections-without-deleted))
 
 
-(defn load-worksheet-state!
-  "Read current worksheet state.
+(defn load-worksheet-data!
+  "Read current worksheet data.
   Takes connection name. For now all connections are worksheets (1-1 relationship) in terms of state.
   This obviously is needs to be designed - either we don't allow many worksheets of one conn,
   or we have many states per conn. Either way it's to be chosen later.
 
-  Returns a map with worksheet state.
+  Returns a map with worksheet data.
 
-  State file is called state.json and it's for now located in current directory.
+  Data file is called \"worksheetdata.json\" and it's for now located in current directory.
   "
   [^String conn-name]
-  {})
+  (assert (not= conn-name nil))
+  (let [datas (try
+                (-> (slurp "worksheetdata.json")
+                    (json/read-str))
+                (catch IOException _ nil))]
+    (if datas
+      (datas conn-name))))
+
+
+(defn save-worksheet-data!
+  "Save worksheet state."
+  [^String conn-name
+   worksheet-data]
+  (assert (not= conn-name nil))
+  (let [current-data (try
+                       (-> (slurp "worksheetdata.json")
+                           (json/read-str))
+                       (catch IOException _ {}))
+        new-data (assoc current-data conn-name worksheet-data)
+        new-data-str (json/write-str new-data)]
+    (spit "worksheetdata.json" new-data-str)))
+
