@@ -19,7 +19,7 @@
                    mainclassname="sqls.core"
                    icon="resources/sqls.icns">
             <runtime dir="${env.JAVA_HOME}" />
-            <classpath file="target/sqls-0.1.0-SNAPSHOT-standalone.jar"/>
+            <classpath file="target/uberjar/sqls-0.1.0-SNAPSHOT-standalone.jar"/>
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>
