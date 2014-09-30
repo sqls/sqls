@@ -1,14 +1,14 @@
 
 (ns sqls.ui.worksheet
   (:use [clojure.string :only (join split-lines trim)])
-  (:require seesaw.chooser)
-  (:require seesaw.core)
-  (:require seesaw.keystroke)
-  (:require seesaw.rsyntax)
-  (:require seesaw.table)
+  (:require seesaw.chooser
+            seesaw.core
+            seesaw.keystroke
+            seesaw.rsyntax
+            seesaw.table)
+  (:require [sqls.ui.dev-util :as ui-dev])
   [:import [java.io File]
-           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]]
-  )
+           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]])
 
 
 (defn create-worksheet-frame
@@ -50,8 +50,10 @@
                                                                              :text "Commit")
                                                          (seesaw.core/button :id :rollback
                                                                              :text "Rollback")
+                                                         ; (seesaw.core/button :id :print-ui-tree
+                                                         ;                     :text "Dump UI Tree")
                                                          ])
-        center-panel (seesaw.core/vertical-panel :items [query-text-area-scrollable tabs-panel])
+        center-panel (seesaw.core/top-bottom-split query-text-area-scrollable tabs-panel)
         south-panel (seesaw.core/horizontal-panel :items [(seesaw.core/label :id :status-bar-text
                                                                              :text " ")])
         border-panel (seesaw.core/border-panel :north menu-panel
@@ -61,9 +63,13 @@
                           :title "SQL Worksheet"
                           :content border-panel)]
     (seesaw.core/pack! worksheet-frame)
-    (println (format "contents: %s" contents))
     (if contents
       (seesaw.core/config! query-text-area :text contents))
+    (let [btn-print-ui-tree (seesaw.core/select worksheet-frame [:#print-ui-tree])]
+      (if btn-print-ui-tree
+        (seesaw.core/listen
+          btn-print-ui-tree :action
+          (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
     worksheet-frame
     )
 )

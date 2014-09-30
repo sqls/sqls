@@ -4,40 +4,40 @@
   Saving and loading of preferences, connection data, worksheet state etc."
   (:use [clojure.tools.logging :only (debug info)])
   (:require [clojure.data.json :as json])
-  [:import [java.io IOException]])
+  (:require [sqls.util :as util])
+  (:import [java.io IOException]))
 
 
 (defn load-settings!
-  []
+  [conf-dir]
   (try
-    (json/read-str (slurp "settings.json"))
-    (catch Exception e (hash-map))
-  ))
+    (json/read-str (slurp (util/path-join [conf-dir "settings.json"])))
+    (catch Exception _ (hash-map))))
 
 
 (defn write-settings!
-  [settings]
-  (println "about to save settings:" settings)
-  (spit "settings.json" (json/write-str settings))
-  )
+  [^String conf-dir
+   settings]
+  (spit (util/path-join [conf-dir "settings.json"]) (json/write-str settings)))
 
 
 (defn load-connections!
   "Load connections from connections.json."
-  []
+  [^String conf-dir]
   (try
-    (json/read-str (slurp "connections.json"))
-    (catch Exception e nil)))
+    (json/read-str (slurp (util/path-join [conf-dir "connections.json"])))
+    (catch Exception _ nil)))
 
 
 (defn save-connections!
   "Write connections to connections.json"
-  [connections]
-  (spit "connections.json" (json/write-str connections)))
+  [^String conf-dir
+   connections]
+  (spit (util/path-join [conf-dir "connections.json"]) (json/write-str connections)))
 
 
 (defn add-connection!
-  "Add connection to connection list.
+  "Add connection to connection list in conf-dir, return new list.
 
   Parameters:
 
@@ -48,27 +48,27 @@
     - desc - description,
     - driver - JDBC connection driver name.
 
-  Returns new connection list.
-  "
-  [conn-data]
-  (let [connections (load-connections!)
+  Returns new connection list."
+  [^String conf-dir
+   conn-data]
+  (let [connections (load-connections! conf-dir)
         connections-without-new (remove #(= (% "name") (conn-data "name")) connections)
         keyfn (fn [conn-data] [(conn-data "name")
                                (conn-data "class")
                                (conn-data "desc")])
         connections-with-new (sort-by keyfn (cons conn-data connections-without-new))]
-    (println "connections-with-new:" connections-with-new)
-    (save-connections! connections-with-new)
+    (save-connections! conf-dir connections-with-new)
     connections-with-new))
 
 
 (defn delete-connection!
   "Delete connection by name."
-  [^String name]
+  [^String conf-dir
+   ^String name]
   (assert (not= name nil))
-  (let [connections (load-connections!)
+  (let [connections (load-connections! conf-dir)
         connections-without-deleted (remove #(= (% "name") name) connections)]
-    (save-connections! connections-without-deleted)
+    (save-connections! conf-dir connections-without-deleted)
     connections-without-deleted))
 
 
@@ -82,10 +82,12 @@
 
   Data file is called \"worksheetdata.json\" and it's for now located in current directory.
   "
-  [^String conn-name]
+  [^String conf-dir
+   ^String conn-name]
   (assert (not= conn-name nil))
-  (let [datas (try
-                (-> (slurp "worksheetdata.json")
+  (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
+        datas (try
+                (-> (slurp worksheet-data-path)
                     (json/read-str))
                 (catch IOException _ nil))]
     (if datas
@@ -94,14 +96,16 @@
 
 (defn save-worksheet-data!
   "Save worksheet state."
-  [^String conn-name
+  [^String conf-dir
+   ^String conn-name
    worksheet-data]
   (assert (not= conn-name nil))
-  (let [current-data (try
-                       (-> (slurp "worksheetdata.json")
+  (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
+        current-data (try
+                       (-> (slurp worksheet-data-path)
                            (json/read-str))
                        (catch IOException _ {}))
         new-data (assoc current-data conn-name worksheet-data)
         new-data-str (json/write-str new-data)]
-    (spit "worksheetdata.json" new-data-str)))
+    (spit worksheet-data-path new-data-str)))
 

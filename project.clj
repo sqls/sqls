@@ -4,10 +4,11 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [
-                 [org.clojure/clojure "1.6.0"]
+                 [org.clojure/clojure "1.7.0-alpha2"]
                  [org.clojure/data.json "0.2.5"]
-                 [org.clojure/java.jdbc "0.3.4"]
-                 [org.clojure/tools.logging "0.3.0"]
+                 [org.clojure/java.jdbc "0.3.5"]
+                 [org.clojure/tools.cli "0.3.1"]
+                 [org.clojure/tools.logging "0.3.1"]
                  [org.xerial/sqlite-jdbc "3.7.2"]
                  [seesaw "1.4.4"]
                  ]

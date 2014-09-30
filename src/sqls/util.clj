@@ -1,16 +1,14 @@
-
-
 (ns sqls.util
   "Various utilities."
-  (:import java.io.File)
-  (:import java.lang.System)
-  )
+  (:import java.io.File
+           java.lang.System)
+  (:require [clojure.string :as string]))
 
 
 (defn path-to-absolute-path
   "Return absolute path."
   [^String p]
-  (let [f (java.io.File. p)]
+  (let [f (File. p)]
     (.getAbsolutePath f)))
 
 
@@ -30,20 +28,14 @@
 
 (defn path-join
   "Join arguments as path. This should be expressed as fold.
-  Takes seq of path elements, returns them joined as absolute path."
+  Takes seq of path elements."
   [parts]
-  (let [^String base (first parts)
-        others (rest parts)]
-    (if (empty? others)
-      base
-      (let [^String first-other (first others)
-            ^String new-base (.getAbsolutePath (java.io.File. base first-other))
-            new-others (rest others)]
-        (path-join (cons new-base new-others))))))
+  (let [sep File/separator]
+    (string/join sep (map str parts))))
 
 
 (defn get-absolute-path
-  [^java.io.File f]
+  [^File f]
   (.getAbsolutePath f))
 
 
@@ -53,7 +45,7 @@
   Returns seq absolute paths as strings.
   "
   [d]
-  (let [^java.io.File df (if (instance? java.io.File d) d (java.io.File. d))
+  (let [^File df (if (instance? File d) d (File. (str d)))
         filenames (seq (.list df))
         join-df-and-filename (fn [^String f] (path-join [(.getAbsolutePath df) f]))
         absolute-filenames (map join-df-and-filename filenames)]
@@ -63,7 +55,7 @@
 (defn find-driver-jars
   "Return a list of absolute paths to driver jar files."
   []
-  (let [home (java.lang.System/getProperty "user.home")
+  (let [home (System/getProperty "user.home")
         home-sqls (path-join [home ".sqls"])
         home-sqls-lib (path-join [home ".sqls" "lib"])
         dirs ["." "lib" home-sqls home-sqls-lib]
@@ -72,3 +64,35 @@
         lists-of-jars (map list-jars dirs)
         jars (apply concat lists-of-jars)]
     jars))
+
+
+(defn dir-exists?
+  "Check if dir exists."
+  [^String d]
+  (let [df (File. d)]
+    (and df (.exists df) (.isDirectory df))))
+
+
+(defn file-exists?
+  "Check if file named by f exists."
+  [^String f]
+  (let [ff (File. f)]
+  (and f
+       ff
+       (.exists ff)
+       (.isFile ff))))
+
+
+(defn is-writable?
+  "Check if path is writable."
+  [^String f]
+  (let [df (File. f)]
+    (.canWrite df)))
+
+
+(defn parent-dir
+  "Get parent directory"
+  [^String d]
+  (let [df (File. d)]
+    (.getParent df)))
+

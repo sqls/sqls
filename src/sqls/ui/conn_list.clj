@@ -1,5 +1,7 @@
+
 (ns sqls.ui.conn-list
   "Conn list window UI"
+  (:import [javax.swing JFrame])
   (:require
     seesaw.core
     seesaw.table
@@ -56,22 +58,23 @@
 
 (defn get-selected-conn-data
   "Extract currently selected conn-data from connection list frame."
-  [frame]
+  [^JFrame frame]
+  (assert (not= frame nil))
   (let [table (seesaw.core/select frame [:#conn-list-table])
-        _ (println "conn list table: " table)
         selected-table-item (seesaw.core/selection table)
-        _ (println "selected table item:" selected-table-item ", type:" (type selected-table-item))
         conn-item (seesaw.table/value-at table selected-table-item)
-        conn-data (:conn-data conn-item)
-        _ (println "conn-data:" conn-data)]
+        conn-data (:conn-data conn-item)]
     conn-data))
 
 
 (defn on-btn-add-click
-  "Add connection button, conn list frame."
+  "Handle add connection button in conn list frame."
   [save! test-conn! e]
-  (let [conn-list-frame (seesaw.core/to-root e)
-        add-connection-frame (sqls.ui.conn-edit/create-edit-connection-frame (seesaw.core/to-root e) nil save! test-conn!)]
+  (let [add-connection-frame (sqls.ui.conn-edit/create-edit-connection-frame
+                               (seesaw.core/to-root e)
+                               nil
+                               save!
+                               test-conn!)]
     (seesaw.core/show! add-connection-frame)
     )
   )
@@ -88,7 +91,10 @@
 (defn on-btn-delete-click
   "User clicks delete button in connection list window.
   TODO: ask for confirmation asynchronously (but modally)."
-  [e delete-connection!]
+  [delete-connection! e]
+  (println (str "btn delete click: " e))
+  (assert (not= e nil))
+  (assert (not= delete-connection! nil))
   (let [frame (seesaw.core/to-root e)
         conn-data (get-selected-conn-data frame)]
     (if (not= conn-data nil)
@@ -129,7 +135,10 @@
         btn-about (seesaw.core/button :id :btn-about :text "About")
         btn-add (seesaw.core/button :id :btn-new :text "Add")
         btn-edit (seesaw.core/button :id :btn-edit :text "Edit" :enabled? false)
-        btn-delete (seesaw.core/button :id :btn-delete :text "Delete" :enabled? false :listen [:action (partial on-btn-delete-click delete-connection!)])
+        btn-delete (seesaw.core/button :id :btn-delete
+                                       :text "Delete"
+                                       :enabled? false
+                                       :listen [:action (partial on-btn-delete-click delete-connection!)])
         btn-connect (seesaw.core/button :id :btn-connect :text "Connect" :enabled? false)
         frame (seesaw.core/frame :title "SQLS"
                      :content (seesaw.core/vertical-panel :id :panel
