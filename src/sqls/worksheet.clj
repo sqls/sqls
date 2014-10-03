@@ -43,7 +43,7 @@
         remove-worksheet-from-sqls (:remove-worksheet-from-sqls handlers)
         _ (assert (not= remove-worksheet-from-sqls nil))
         worksheet-frame-handlers {:window-closed (partial remove-worksheet-from-sqls conn-name)}
-        worksheet-frame (ui-worksheet/create-worksheet-frame contents worksheet-frame-handlers)
+        worksheet-frame (ui-worksheet/create-worksheet-frame contents conn-name worksheet-frame-handlers)
         worksheet-agent (agent {}
                                :error-handler worksheet-agent-error-handler)
         worksheet (atom {:frame worksheet-frame

@@ -22,7 +22,9 @@
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
   "
-  [^String contents handlers]
+  [^String contents
+   ^String conn-name
+   handlers]
   (let [query-text-area (seesaw.rsyntax/text-area :id :sql
                                                   :syntax :sql
                                                   :columns 80
@@ -63,7 +65,7 @@
                                                :center center-panel
                                                :south south-panel)
         worksheet-frame (seesaw.core/frame
-                          :title "SQL Worksheet"
+                          :title (format "SQL Worksheet: %s" conn-name)
                           :content border-panel
                           :on-close :dispose)]
     (seesaw.core/pack! worksheet-frame)
