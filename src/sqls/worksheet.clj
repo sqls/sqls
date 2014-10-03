@@ -7,8 +7,7 @@
     [sqls.util :as util]
     sqls.jdbc
     )
-  (:import clojure.lang.Agent)
-  (:import clojure.lang.Atom)
+  (:import [clojure.lang Agent Atom Keyword])
   (:import java.sql.Connection))
 
 
@@ -40,7 +39,11 @@
   - rows - a pair of semi-strict and lazy sequences of rows.
   "
   [conn-data contents handlers]
-  (let [worksheet-frame (ui-worksheet/create-worksheet-frame contents)
+  (let [conn-name (conn-data "name")
+        remove-worksheet-from-sqls (:remove-worksheet-from-sqls handlers)
+        _ (assert (not= remove-worksheet-from-sqls nil))
+        worksheet-frame-handlers {:window-closed (partial remove-worksheet-from-sqls conn-name)}
+        worksheet-frame (ui-worksheet/create-worksheet-frame contents worksheet-frame-handlers)
         worksheet-agent (agent {}
                                :error-handler worksheet-agent-error-handler)
         worksheet (atom {:frame worksheet-frame
@@ -92,7 +95,7 @@
 
 (defn swap-worksheet-state
   [from-state to-state worksheet-atom-value]
-  (let [^clojure.lang.Keyword current-state (worksheet-atom-value :state)]
+  (let [^Keyword current-state (worksheet-atom-value :state)]
     (if (= current-state from-state)
       (do
         (println (format "ok, setting state to %s" to-state))
@@ -209,12 +212,19 @@
   Params:
 
   - conn-data - connection parameters including name and jdbc connection string,
-  - worksheet-data - worksheet data, like contents, scroll position, possibly other (I start with contents and will add more stuff later),
+  - worksheet-data - worksheet data, like contents, scroll position, possibly other (I start with contents and will
+    add more stuff later),
   - handlers - a map of functions that talk to other submodules, since I don't want to use other submodules directly:
 
-    - :save-worksheet-data - takes one parameter, a map of worksheet data, of which currently one parameter is supported:
+    - :save-worksheet-data - takes one parameter, a map of worksheet data, of which currently one parameter is
+      supported:
 
       - :contents - worksheet contents
+
+    - :remove-worksheet-from-sqls conn-name - removes this worksheet from app, to be executed after disposal
+      of worksheet frame.
+
+
   "
   [conn-data
    worksheet-data
@@ -235,6 +245,6 @@
         (ui-worksheet/set-on-save-handler frame (partial save! connected-worksheet))
         (ui-worksheet/set-on-open-handler frame (partial open! connected-worksheet))
         (ui-worksheet/show! frame)
-        nil))))
+        worksheet))))
 
 

@@ -1,14 +1,17 @@
 
 (ns sqls.ui.worksheet
   (:use [clojure.string :only (join split-lines trim)])
+  (:require [clojure.tools.logging :refer [spy spyf]])
   (:require seesaw.chooser
             seesaw.core
             seesaw.keystroke
             seesaw.rsyntax
             seesaw.table)
   (:require [sqls.ui.dev-util :as ui-dev])
-  [:import [java.io File]
-           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]])
+  [:import [java.awt Dimension Rectangle]
+           [java.io File]
+           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]
+           [javax.swing.table TableColumn]])
 
 
 (defn create-worksheet-frame
@@ -19,7 +22,7 @@
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
   "
-  [^String contents]
+  [^String contents handlers]
   (let [query-text-area (seesaw.rsyntax/text-area :id :sql
                                                   :syntax :sql
                                                   :columns 80
@@ -61,7 +64,8 @@
                                                :south south-panel)
         worksheet-frame (seesaw.core/frame
                           :title "SQL Worksheet"
-                          :content border-panel)]
+                          :content border-panel
+                          :on-close :dispose)]
     (seesaw.core/pack! worksheet-frame)
     (if contents
       (seesaw.core/config! query-text-area :text contents))
@@ -70,9 +74,10 @@
         (seesaw.core/listen
           btn-print-ui-tree :action
           (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
-    worksheet-frame
-    )
-)
+    (let [window-closed-handler (:window-closed handlers)]
+      (assert (ifn? window-closed-handler))
+      (seesaw.core/listen worksheet-frame :window-closed (fn [_] (window-closed-handler))))
+    worksheet-frame))
 
 
 (defn dispose-worksheet-frame!
@@ -227,8 +232,8 @@
   "Return scroll position as float."
   [^JViewport viewport]
   (assert (not= viewport nil))
-  (let [view-size (.getViewSize viewport)
-        view-rect (.getViewRect viewport)
+  (let [^Dimension view-size (.getViewSize viewport)
+        ^Rectangle view-rect (.getViewRect viewport)
         view-rect-pos (float (.y view-rect))
         view-height (float (.height view-size))
         view-rect-height (float (.height view-rect))
@@ -327,7 +332,7 @@
                                             max-column-value-length))))
             ]
         (doall (for [column-index (range column-count)]
-                 (let [table-column (.getColumn table-column-model column-index)
+                 (let [^TableColumn table-column (.getColumn table-column-model column-index)
                        column-width (get max-column-widths column-index)]
                    (.setPreferredWidth table-column (* column-width 10)))))))
     (set-on-scroll-handler frame (partial on-results-table-scrolled worksheet-atom))))

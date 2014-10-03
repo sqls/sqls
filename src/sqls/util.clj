@@ -5,6 +5,16 @@
   (:require [clojure.string :as string]))
 
 
+(defn any?
+  [c]
+  (some identity c))
+
+
+(defn all?
+  [c]
+  (every? identity c))
+
+
 (defn path-to-absolute-path
   "Return absolute path."
   [^String p]

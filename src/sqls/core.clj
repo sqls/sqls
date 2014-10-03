@@ -4,7 +4,8 @@
   (:use sqls.ui)
   (:require [clojure.java.io :as io]
             [clojure.string :as string])
-  (:require [clojure.tools.cli :refer [parse-opts]])
+  (:require [clojure.tools.cli :refer [parse-opts]]
+            [clojure.tools.logging :refer [spy spyf]])
   (:require sqls.ui.conn-list)
   (:require sqls.ui.conn-edit)
   (:require [sqls.stor :as stor]
@@ -12,7 +13,8 @@
   (:require sqls.jdbc)
   (:require sqls.worksheet)
   (:require [sqls.ui :as ui])
-  (:import java.sql.Connection))
+  (:import java.sql.Connection
+           [clojure.lang Atom]))
 
 
 (def cli-options
@@ -35,6 +37,22 @@
 (defn exit [status msg]
   (println msg)
   (System/exit status))
+
+
+(defn create-sqls-atom!
+  "Create central data structure for SQLs.
+  This is an Atom, since it's shared mutable data structure (shared between all worksheets).
+  It's required because we want stuff like explicit JVM stop when closing last frame (which requires
+
+  SQLs atom is for now map and it contains following keys:
+
+  - :worksheets - map of worksheets, by conn name,
+  - :conf-dir - current value of conf-dir, configuration files go there.
+  "
+  [conf-dir]
+  (let [s {:worksheets {}
+           :conf-dir   conf-dir}]
+    (atom s)))
 
 
 (defn save-conn!
@@ -80,12 +98,23 @@
   "Create and return a map of functions that perform various actions initiated at worksheet
   that change state outside of worksheet.
   This is because we don't want worksheet code to access other submodules directly."
-  [conf-dir conn-data]
-  (let [conn-name (conn-data "name")]
+  [^Atom sqls-atom
+   conn-data]
+  (assert sqls-atom)
+  (let [conf-dir (:conf-dir @sqls-atom)
+        conn-name (conn-data "name")]
     (assert (not= conn-name nil))
     {:save-worksheet-data (fn
                             [worksheet-data]
-                            (stor/save-worksheet-data! conf-dir conn-name worksheet-data))}))
+                            (stor/save-worksheet-data! conf-dir conn-name worksheet-data))
+     :remove-worksheet-from-sqls (fn
+                                   [conn-name]
+                                   (swap! sqls-atom (fn
+                                                      [s]
+                                                      (let [worksheets (:worksheets s)
+                                                            new-worksheets (dissoc worksheets conn-name)
+                                                            new-sqls (assoc s :worksheets new-worksheets)]
+                                                        (spyf "removed worksheet from sqls-atom and have: %s" new-sqls)))))}))
 
 
 (defn -sqls
@@ -106,19 +135,32 @@
     (invoke-later
       (let [cwd (System/getProperty "user.dir")
             conf-dir (if cli-conf-dir cli-conf-dir (conf/find-conf-dir cwd))
-            _ (println (str "conf dir: " conf-dir))
             _ (assert conf-dir)
+            sqls-atom (create-sqls-atom! conf-dir)
             _ (conf/ensure-conf-dir! conf-dir)
             settings (stor/load-settings! conf-dir)
             connections (stor/load-connections! conf-dir)
             handlers {:create-worksheet (fn [conn-data]
                                           (let [conn-name (conn-data "name")
+                                                is-open? (not= nil ((:worksheets @sqls-atom) conn-name))
+                                                _ (assert (not is-open?))
                                                 worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
-                                                contents (if worksheet-data (worksheet-data "contents"))]
-                                            (sqls.worksheet/create-and-show-worksheet!
-                                              conn-data
-                                              contents
-                                              (create-worksheet-handlers conf-dir conn-data))))
+                                                contents (if worksheet-data (worksheet-data "contents"))
+                                                worksheet (sqls.worksheet/create-and-show-worksheet!
+                                                            conn-data
+                                                            contents
+                                                            (create-worksheet-handlers sqls-atom conn-data))]
+                                            (swap! sqls-atom (fn
+                                                               [s]
+                                                               (let [old-worksheets (:worksheets s)
+                                                                     new-worksheets (assoc old-worksheets conn-name worksheet)]
+                                                                 (assoc s :worksheets new-worksheets))))))
+                      :is-connectable? (fn
+                                         [conn-name]
+                                         (let [worksheets (:worksheets @sqls-atom)
+                                               _ (assert (not= nil worksheets))]
+                                           (not (contains? worksheets conn-name))
+                                           ))
                       :save-conn (partial save-conn! conf-dir)
                       :test-conn test-conn!
                       :delete-connection! (partial stor/delete-connection! conf-dir)
@@ -127,7 +169,7 @@
                                (-> (io/resource "about.txt")
                                    (slurp)
                                    (ui/show-about-dialog!)))}
-            conn-list-frame (sqls.ui.conn-list/create-login-ui exit-on-close? handlers settings connections)]
+            conn-list-frame (sqls.ui.conn-list/create-login-ui sqls-atom exit-on-close? handlers settings connections)]
         (pack! conn-list-frame)
         (show! conn-list-frame)))))
 
