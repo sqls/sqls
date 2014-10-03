@@ -1,7 +1,7 @@
 (ns sqls.util
   "Various utilities."
   (:import java.io.File
-           java.lang.System)
+           java.lang.System [clojure.lang Atom])
   (:require [clojure.string :as string]))
 
 
@@ -13,6 +13,31 @@
 (defn all?
   [c]
   (every? identity c))
+
+
+(defn not-nil?
+  [x]
+  (not (nil? x)))
+
+
+(defn assert-not-nil
+  [x]
+  (assert (not-nil? x)))
+
+
+(defn str?
+  [x]
+  (instance? String x))
+
+
+(defn str-or-nil?
+  [x]
+  (or (nil? x) (str? x)))
+
+
+(defn atom?
+  [a]
+  (and (not-nil? a) (instance? Atom a)))
 
 
 (defn path-to-absolute-path

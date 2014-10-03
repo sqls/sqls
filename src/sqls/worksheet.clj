@@ -1,14 +1,15 @@
 
 (ns sqls.worksheet
-  (:use [clojure.string :only [trim]])
   (:require
+    [clojure.string :refer [trim]]
     [sqls.ui :as ui]
     [sqls.ui.worksheet :as ui-worksheet]
     [sqls.util :as util]
-    sqls.jdbc
-    )
-  (:import [clojure.lang Agent Atom Keyword])
-  (:import java.sql.Connection))
+    [sqls.util :refer [atom? not-nil?]]
+    sqls.jdbc)
+  (:import [clojure.lang Agent Atom Keyword]
+           [javax.swing JFrame]
+           [java.sql Connection SQLException]))
 
 
 (defn worksheet-agent-error-handler
@@ -16,6 +17,32 @@
   [^Agent a
    ^Throwable e]
   (println (format "agent %s got exception %s" a e)))
+
+
+(defn on-worksheet-window-closed
+  "Called from Worksheet UI when windows was closed.
+  Cleanup of worksheet happens here:
+
+  - try to close connection,
+  - remove agent and atom,
+  - call parent (sqls) to remove ourselves from central structures - this
+    happens by calling remove-worksheet-from-sqls with conn-name as only parameter."
+  [worksheet remove-worksheet-from-sqls]
+  (assert (atom? worksheet))
+  (assert (not-nil? remove-worksheet-from-sqls))
+  (assert (ifn? remove-worksheet-from-sqls))
+  (println "window closed")
+  (let [conn-data (:conn-data @worksheet)
+        conn-name (conn-data "name")
+        ^Connection conn (:conn @worksheet)
+        agent (:agent @worksheet)]
+    (send-off agent (fn [_]
+                      (.close conn)
+                      nil))
+    (assert (not-nil? conn-name))
+    (assert (instance? String conn-name))
+    (reset! worksheet {})
+    (remove-worksheet-from-sqls conn-name)))
 
 
 (defn create-worksheet
@@ -38,12 +65,12 @@
   - columns - columns,
   - rows - a pair of semi-strict and lazy sequences of rows.
   "
-  [conn-data contents handlers]
+  [conn-data worksheet-data handlers]
+  (assert (or (nil? worksheet-data) (map? worksheet-data)))
   (let [conn-name (conn-data "name")
         remove-worksheet-from-sqls (:remove-worksheet-from-sqls handlers)
         _ (assert (not= remove-worksheet-from-sqls nil))
-        worksheet-frame-handlers {:window-closed (partial remove-worksheet-from-sqls conn-name)}
-        worksheet-frame (ui-worksheet/create-worksheet-frame contents conn-name worksheet-frame-handlers)
+        worksheet-frame (ui-worksheet/create-worksheet-frame worksheet-data conn-name)
         worksheet-agent (agent {}
                                :error-handler worksheet-agent-error-handler)
         worksheet (atom {:frame worksheet-frame
@@ -51,6 +78,13 @@
                          :agent worksheet-agent
                          :state :idle
                          :handlers handlers})]
+    ; this needs to happen in separate function, because we have circular dependency:
+    ; we want to have worksheet data structure with frame and other stuff, but we
+    ; also want event handlers originating from frame to modify worksheet structures
+    (ui-worksheet/set-on-windows-closed-handler
+      worksheet-frame
+      ; partial holds relevant references, and is called by ui without parameters
+      (partial on-worksheet-window-closed worksheet remove-worksheet-from-sqls))
     worksheet))
 
 
@@ -114,7 +148,7 @@
   [worksheet-agent-state
    ^Atom worksheet
    ^String sql]
-  (let [^javax.swing.JFrame frame (:frame @worksheet)
+  (let [^JFrame frame (:frame @worksheet)
         ^Connection conn (@worksheet :conn)]
     (assert (not= frame nil))
     (assert (not= conn nil))
@@ -127,11 +161,12 @@
           (show-results! worksheet cursor))
         (ui-worksheet/log frame "Done\n")
         (ui-worksheet/status-text frame "Done"))
-      (catch java.sql.SQLException e
+      (catch SQLException e
         (do
           (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))
           (ui-worksheet/status-text frame "Error"))))
     (swap! worksheet (partial swap-worksheet-state :busy :idle)))
+  (println (format "execute! returning new agent state %s" worksheet-agent-state))
   worksheet-agent-state)
 
 
@@ -154,8 +189,10 @@
   (let [handlers (:handlers @worksheet)
         frame (:frame @worksheet)
         save-worksheet-data (:save-worksheet-data handlers)
-        contents (ui-worksheet/get-worksheet-contents frame)]
-    (save-worksheet-data {"contents" contents}))
+        contents (ui-worksheet/get-worksheet-contents frame)
+        dimensions (ui-worksheet/get-worksheet-frame-dimensions frame)]
+    (save-worksheet-data {"contents" contents
+                          "dimensions" dimensions}))
   (let [^Agent worksheet-agent (@worksheet :agent)
         swap-idle-to-busy (partial swap-worksheet-state :idle :busy)]
     (try
@@ -229,6 +266,8 @@
   [conn-data
    worksheet-data
    handlers]
+  (assert (map? conn-data))
+  (assert (or (nil? worksheet-data) (map? worksheet-data)))
   (let [worksheet (create-worksheet conn-data worksheet-data handlers)
         frame (:frame @worksheet)
         connected-worksheet (connect-worksheet! worksheet)]

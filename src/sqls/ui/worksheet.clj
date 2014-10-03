@@ -1,5 +1,6 @@
 
 (ns sqls.ui.worksheet
+  (:import (java.awt Point))
   (:use [clojure.string :only (join split-lines trim)])
   (:require [clojure.tools.logging :refer [spy spyf]])
   (:require seesaw.chooser
@@ -7,7 +8,8 @@
             seesaw.keystroke
             seesaw.rsyntax
             seesaw.table)
-  (:require [sqls.ui.dev-util :as ui-dev])
+  (:require [sqls.ui.dev-util :as ui-dev]
+            [sqls.util :refer [str-or-nil?]])
   [:import [java.awt Dimension Rectangle]
            [java.io File]
            [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]
@@ -22,10 +24,17 @@
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
   "
-  [^String contents
-   ^String conn-name
-   handlers]
-  (let [query-text-area (seesaw.rsyntax/text-area :id :sql
+  [worksheet-data
+   ^String conn-name]
+  (assert (or (nil? worksheet-data) (map? worksheet-data)))
+  (let [contents (:contents worksheet-data)
+        _ (assert (str-or-nil? contents))
+        ;dimensions (:dimensions worksheet-data)
+        ;pref-size (if dimensions
+        ;            (let [[_ _ w h] dimensions]
+        ;              [h :by w]))
+        ;_ (println (format "pref size: %s" pref-size))
+        query-text-area (seesaw.rsyntax/text-area :id :sql
                                                   :syntax :sql
                                                   :columns 80
                                                   :rows 25)
@@ -76,9 +85,6 @@
         (seesaw.core/listen
           btn-print-ui-tree :action
           (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
-    (let [window-closed-handler (:window-closed handlers)]
-      (assert (ifn? window-closed-handler))
-      (seesaw.core/listen worksheet-frame :window-closed (fn [_] (window-closed-handler))))
     worksheet-frame))
 
 
@@ -86,6 +92,13 @@
   "Dispose worksheet frame."
   [frame]
   (seesaw.core/dispose! frame))
+
+
+(defn set-on-windows-closed-handler
+  [^JFrame frame
+   handler]
+  (assert (ifn? handler))
+  (seesaw.core/listen frame :window-closed (fn [_] (handler))))
 
 
 (defn on-key-press
@@ -117,13 +130,13 @@
 (defn set-on-commit-handler
   [frame handler]
   (let [btn-commit (seesaw.core/select frame [:#commit])]
-    (seesaw.core/listen btn-commit :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-commit :action (fn [_] (handler)))))
 
 
 (defn set-on-rollback-handler
   [frame handler]
   (let [btn-rollback (seesaw.core/select frame [:#rollback])]
-    (seesaw.core/listen btn-rollback :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-rollback :action (fn [_] (handler)))))
 
 
 (defn set-on-execute-handler
@@ -131,7 +144,7 @@
   [frame handler]
   (let [btn-execute (seesaw.core/select frame [:#execute])]
     (assert (not= btn-execute nil))
-    (seesaw.core/listen btn-execute :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-execute :action (fn [_] (handler)))))
 
 
 (defn set-on-new-handler
@@ -139,7 +152,7 @@
   [frame handler]
   (let [btn-new (seesaw.core/select frame [:#new])]
     (assert (not= btn-new nil))
-    (seesaw.core/listen btn-new :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-new :action (fn [_] (handler)))))
 
 
 (defn set-on-save-handler
@@ -147,7 +160,7 @@
   [frame handler]
   (let [btn-save (seesaw.core/select frame [:#save])]
     (assert (not= btn-save nil))
-    (seesaw.core/listen btn-save :action (fn [e] (handler)))))
+    (seesaw.core/listen btn-save :action (fn [_] (handler)))))
 
 
 (defn set-on-open-handler
@@ -199,6 +212,18 @@
   (seesaw.core/value (seesaw.core/select frame [:#sql])))
 
 
+(defn get-worksheet-frame-dimensions
+  "Get worksheet frame position and size."
+  [^JFrame frame]
+  (let [^Dimension s (seesaw.core/config frame :size)
+        w (.width s)
+        h (.height s)
+        ^Point p (.getLocationOnScreen frame)
+        x (.x p)
+        y (.y p)]
+    [x y w h]))
+
+
 (defn get-sql
   "Extract current SQL statement text from frame."
   ^String
@@ -245,7 +270,7 @@
 
 
 (defn append-row!
-  [^javax.swing.JTable results-table row]
+  [^JTable results-table row]
   (let [row-count (seesaw.table/row-count results-table)]
     (seesaw.table/insert-at! results-table row-count row)))
 

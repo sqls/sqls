@@ -4,7 +4,8 @@
   Saving and loading of preferences, connection data, worksheet state etc."
   (:use [clojure.tools.logging :only (debug info)])
   (:require [clojure.data.json :as json])
-  (:require [sqls.util :as util])
+  (:require [sqls.util :as util]
+            [sqls.util :refer [assert-not-nil]])
   (:import [java.io IOException]))
 
 
@@ -84,14 +85,18 @@
   "
   [^String conf-dir
    ^String conn-name]
-  (assert (not= conn-name nil))
+  (assert-not-nil conf-dir)
+  (assert-not-nil conn-name)
   (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
         datas (try
                 (-> (slurp worksheet-data-path)
-                    (json/read-str))
+                    (json/read-str :key-fn keyword))
                 (catch IOException _ nil))]
     (if datas
-      (datas conn-name))))
+      (let [wd (datas (keyword conn-name))]
+        (assert (or (nil? wd) (map? wd)))
+        (println (format "loaded worksheet data for \"%s\": %s" conn-name wd))
+        wd))))
 
 
 (defn save-worksheet-data!
@@ -100,12 +105,15 @@
    ^String conn-name
    worksheet-data]
   (assert (not= conn-name nil))
+  (assert (map? worksheet-data))
+  (println (format "saving worksheet data for \"%s\": %s" conn-name worksheet-data))
   (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
         current-data (try
                        (-> (slurp worksheet-data-path)
-                           (json/read-str))
+                           (json/read-str :key-fn keyword))
                        (catch IOException _ {}))
-        new-data (assoc current-data conn-name worksheet-data)
+        new-data (assoc current-data (keyword conn-name) worksheet-data)
         new-data-str (json/write-str new-data)]
+    (println (format "new worksheet data: %s" new-data-str))
     (spit worksheet-data-path new-data-str)))
 

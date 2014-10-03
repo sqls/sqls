@@ -106,6 +106,7 @@
     (assert (not= conn-name nil))
     {:save-worksheet-data (fn
                             [worksheet-data]
+                            (assert (map? worksheet-data))
                             (stor/save-worksheet-data! conf-dir conn-name worksheet-data))
      :remove-worksheet-from-sqls (fn
                                    [conn-name]
@@ -145,13 +146,13 @@
                                                 is-open? (not= nil ((:worksheets @sqls-atom) conn-name))
                                                 _ (assert (not is-open?))
                                                 worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
-                                                contents (if worksheet-data (worksheet-data "contents"))
                                                 worksheet (sqls.worksheet/create-and-show-worksheet!
                                                             conn-data
-                                                            contents
+                                                            worksheet-data
                                                             (create-worksheet-handlers sqls-atom conn-data))]
                                             (swap! sqls-atom (fn
                                                                [s]
+                                                               ; assoc-in...
                                                                (let [old-worksheets (:worksheets s)
                                                                      new-worksheets (assoc old-worksheets conn-name worksheet)]
                                                                  (assoc s :worksheets new-worksheets))))))
