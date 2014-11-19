@@ -18,9 +18,17 @@
 
 (defn create-worksheet-frame
   "Create worksheet frame.
-  Frame contains following widgets:
 
-  - :sql - text with SQL statements,
+  Parameters:
+
+  - worksheet-data - a dictionary that contains worksheet data saved between runs:
+
+    - :contents - worksheet text area contents,
+    - :split-ratio - divider location for main text area and results split pane (relative, from 0.0 to 1.0).
+
+  Frame contains following widgets (among others):
+
+  - :sql - text area with SQL code,
   - :results-panel - container that contains results, which in turn contains table with :id :results,
     contents of this panel are meant to be replaced on each query execution.
   "
@@ -29,6 +37,16 @@
   (assert (or (nil? worksheet-data) (map? worksheet-data)))
   (let [contents (:contents worksheet-data)
         _ (assert (str-or-nil? contents))
+        clip-to-range (fn
+                   [x _min _max]
+                   (cond
+                     (> x _max) _max
+                     (< x _min) _min
+                     :else x))
+        split-ratio (-> (get worksheet-data :split-ratio 0.5)
+                        (clip-to-range 0.1 0.9))
+        _ (assert (>= split-ratio 0.0))
+        _ (assert (<= split-ratio 1.0))
         ;dimensions (:dimensions worksheet-data)
         ;pref-size (if dimensions
         ;            (let [[_ _ w h] dimensions]
@@ -67,7 +85,9 @@
                                                          ; (seesaw.core/button :id :print-ui-tree
                                                          ;                     :text "Dump UI Tree")
                                                          ])
-        center-panel (seesaw.core/top-bottom-split query-text-area-scrollable tabs-panel)
+        center-panel (seesaw.core/top-bottom-split query-text-area-scrollable tabs-panel
+                                                   :id :splitter
+                                                   :divider-location split-ratio)
         south-panel (seesaw.core/horizontal-panel :items [(seesaw.core/label :id :status-bar-text
                                                                              :text " ")])
         border-panel (seesaw.core/border-panel :north menu-panel
@@ -205,13 +225,6 @@
     (count (filter is-newline before-position-text))))
 
 
-(defn get-worksheet-contents
-  "Get everything from worksheet"
-  ^String
-  [^JFrame frame]
-  (seesaw.core/value (seesaw.core/select frame [:#sql])))
-
-
 (defn get-worksheet-frame-dimensions
   "Get worksheet frame position and size."
   [^JFrame frame]
@@ -245,6 +258,18 @@
   (assert (not= frame nil))
   (-> (seesaw.core/select frame [:#sql])
       (seesaw.core/value)))
+
+
+(defn get-split-ratio
+  [^JFrame f]
+  (let [splitter (seesaw.core/select f [:#splitter])
+        divider-location (seesaw.core/config splitter :divider-location)
+        splitter-height (seesaw.core/height splitter)
+        divider-size (seesaw.core/config splitter :divider-size)
+        split-ratio (/ divider-location (- splitter-height divider-size))]
+    (println (format "divider-location: %s, spitter-height: %s, split-ratio: %s" divider-location splitter-height split-ratio))
+    split-ratio))
+
 
 
 (defn set-on-scroll-handler
@@ -311,7 +336,7 @@
 
 
 (defn on-results-table-scrolled
-  [worksheet-atom e]
+  [worksheet-atom _]
   (let [frame (:frame @worksheet-atom)
         _ (assert (not= frame nil))
         ^JScrollPane table-scrollable (seesaw.core/select frame [:#results-table-scrollable])
@@ -337,7 +362,7 @@
   (let [^JFrame frame (:frame @worksheet-atom)
         _ (assert (not= frame nil))
         [strict-rows lazy-rows] rows
-        ^javax.swing.JTable results-table (seesaw.core/table :id :results-table
+        ^JTable results-table (seesaw.core/table :id :results-table
                                                              :auto-resize :off
                                                              :model [:columns columns
                                                                      :rows strict-rows])

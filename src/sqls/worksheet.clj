@@ -189,10 +189,12 @@
   (let [handlers (:handlers @worksheet)
         frame (:frame @worksheet)
         save-worksheet-data (:save-worksheet-data handlers)
-        contents (ui-worksheet/get-worksheet-contents frame)
-        dimensions (ui-worksheet/get-worksheet-frame-dimensions frame)]
+        contents (ui-worksheet/get-contents frame)
+        dimensions (ui-worksheet/get-worksheet-frame-dimensions frame)
+        split-ratio (ui-worksheet/get-split-ratio frame)]
     (save-worksheet-data {"contents" contents
-                          "dimensions" dimensions}))
+                          "dimensions" dimensions
+                          "split-ratio" split-ratio}))
   (let [^Agent worksheet-agent (@worksheet :agent)
         swap-idle-to-busy (partial swap-worksheet-state :idle :busy)]
     (try
