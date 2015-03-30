@@ -59,7 +59,10 @@
         query-text-area-scrollable (seesaw.core/scrollable query-text-area)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
-        log-text (seesaw.core/text :id :log :multi-line? true :editable? false)
+        log-text (seesaw.core/text :id :log
+                                   :multi-line? true
+                                   :editable? false
+                                   :font (seesaw.font/font :monospaced))
         log-panel (seesaw.core/vertical-panel :id :log-panel
                                               :items [(seesaw.core/scrollable log-text
                                                                               :id :log-scrollable)])
