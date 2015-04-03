@@ -4,6 +4,7 @@
   (:use [seesaw.core :only [
                             alert
                             button
+                            combobox
                             custom-dialog
                             dispose!
                             grid-panel
@@ -17,7 +18,8 @@
                             value
                             vertical-panel
                             ]])
-  (:require seesaw.mig))
+  (:require seesaw.mig
+            [sqls.util :refer [infof spy]]))
 
 
 (defn on-btn-save-connection-cancel
@@ -92,9 +94,18 @@
 
   - conn-list-frame - parent frame that contains list of defined connections,
   - conn-data - if not nil, then data of connection being edited,
-  - save! - save handler to be called when user commits edit.
+  - drivers - list of JDBC driver class names to populate dropdown,
+  - save! - save handler to be called when user commits edit,
+  - test-conn! - function that tests conn.
   "
-  [conn-list-frame conn-data save! test-conn!]
+  [conn-list-frame conn-data drivers save! test-conn!]
+  {:pre [(let [_ (infof "drivers: %s" (into [] drivers))]
+           (or
+             (nil? (spy "drivers" drivers))
+             (and
+               (coll? drivers)
+               (not (empty? drivers))
+               (every? sequential? drivers))))]}
   (let [conn-name (get conn-data "name")
         conn-jar (get conn-data "jar")
         conn-class (get conn-data "class")
@@ -109,7 +120,14 @@
         default-field-options {:preferred-size [0 :by 400]}
         fields [(text :id :name :text conn-name :preferred-size [400 :by 0])
                 (text :id :jar :text conn-jar)
-                (text :id :class :text conn-class)
+                (if drivers
+                  (let [model (map first drivers)                          ; for now only classes
+                        _combobox (combobox :id :class
+                                            :editable? true
+                                            :model model)]
+                    (seesaw.core/selection! _combobox (or conn-class ""))
+                    _combobox)
+                  (text :id :class :text conn-class))
                 (text :id :jdbc-conn-str :text conn-str)
                 (text :id :desc :text conn-desc)]
         buttons [(button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])

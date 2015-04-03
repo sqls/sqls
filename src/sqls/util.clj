@@ -62,9 +62,10 @@
 
 
 (defn path-join
-  "Join arguments as path. This should be expressed as fold.
+  "Join arguments as path.
   Takes seq of path elements."
   [parts]
+  {:pre [every? #(instance? File %) parts]}
   (let [sep File/separator]
     (string/join sep (map str parts))))
 
@@ -130,4 +131,23 @@
   [^String d]
   (let [df (File. d)]
     (.getParent df)))
+
+
+(defn info
+  [& args]
+  (apply println args))
+
+
+(defn infof
+  [fmt & args]
+  (println (apply format fmt args)))
+
+
+(defn spy
+  ([value]
+   (println value)
+   value)
+  ([msg value]
+   (println (format "%s: %s" msg value))
+   value))
 
