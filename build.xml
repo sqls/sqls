@@ -20,7 +20,7 @@
                 mainclassname="sqls.core"
                 jvmrequired="1.7"
                 icon="resources/sqls.icns">
-            <classpath file="target/uberjar/sqls-0.1.1-SNAPSHOT-standalone.jar"/>
+            <classpath file="target/uberjar/sqls-0.1.1-standalone.jar"/>
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>
