@@ -1,4 +1,4 @@
-(defproject sqls "0.1.0-SNAPSHOT"
+(defproject sqls "0.1.1-SNAPSHOT"
   :description "SQLS"
   :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
