@@ -67,8 +67,8 @@
                                               :items [(seesaw.core/scrollable log-text
                                                                               :id :log-scrollable)])
         tabs-panel (seesaw.core/tabbed-panel :id :tabs
-                                       :tabs [{:title "Results" :content results-panel}
-                                              {:title "Log" :content log-panel}])
+                                             :tabs [{:title "Results" :content results-panel}
+                                                    {:title "Log" :content log-panel}])
         menu-panel (seesaw.core/horizontal-panel :id :menu-panel
                                                  :items [
                                                          (seesaw.core/button :id :new
