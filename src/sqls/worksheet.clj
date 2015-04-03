@@ -152,18 +152,20 @@
         ^Connection conn (@worksheet :conn)]
     (assert (not= frame nil))
     (assert (not= conn nil))
-    (ui-worksheet/log frame (format "Executing \"%s\"...\n" sql))
+    (ui-worksheet/log frame (format "Executing:\n%s\n" sql))
     (ui-worksheet/status-text frame "Executing...")
     (ui-worksheet/clear-results! frame)
     (try
       (let [cursor (sqls.jdbc/execute! conn sql)]
-        (if (not= cursor nil)
-          (show-results! worksheet cursor))
+        (when-not (nil? cursor)
+          (show-results! worksheet cursor)
+          (ui-worksheet/select-tab! frame 0))
         (ui-worksheet/log frame "Done\n")
         (ui-worksheet/status-text frame "Done"))
       (catch SQLException e
         (do
           (ui-worksheet/log frame (format "Failed to execute SQL: %s\n" (str e)))
+          (ui-worksheet/select-tab! frame 1)
           (ui-worksheet/status-text frame "Error"))))
     (swap! worksheet (partial swap-worksheet-state :busy :idle)))
   (println (format "execute! returning new agent state %s" worksheet-agent-state))

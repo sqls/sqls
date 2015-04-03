@@ -274,7 +274,6 @@
     split-ratio))
 
 
-
 (defn set-on-scroll-handler
   "Add handler to fetch more results on scroll."
   [frame handler]
@@ -439,3 +438,12 @@
   (let [status-bar-text (seesaw.core/select frame [:#status-bar-text])]
     (assert (not= status-bar-text nil))
     (seesaw.core/text! status-bar-text message)))
+
+
+(defn select-tab!
+  [^JFrame frame
+   idx]
+  (seesaw.invoke/invoke-now
+    (-> (seesaw.core/select frame [:#tabs])
+        (seesaw.core/selection! idx))))
+
