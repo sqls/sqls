@@ -1,6 +1,5 @@
 
 (ns sqls.ui.worksheet
-  (:import (java.awt Point))
   (:use [clojure.string :only (join split-lines trim)])
   (:require [clojure.tools.logging :refer [spy spyf]])
   (:require seesaw.chooser
@@ -10,10 +9,32 @@
             seesaw.table)
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.util :refer [str-or-nil?]])
-  [:import [java.awt Dimension Rectangle]
+  [:import [java.awt Dimension Point Rectangle Toolkit]
+           [java.awt.event InputEvent KeyEvent]
            [java.io File]
-           [javax.swing JFrame JPanel JScrollPane JTable JViewport KeyStroke]
-           [javax.swing.table TableColumn]])
+           [javax.swing InputMap JComponent JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke]
+           [javax.swing.table TableColumn]
+           [javax.swing.text DefaultEditorKit]
+           [org.fife.ui.rsyntaxtextarea RSyntaxTextAreaDefaultInputMap]])
+
+
+(defn fix-textarea-bindings
+  ^JTextArea
+  [^JTextArea t]
+  (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))]
+    (when is-osx
+      (let [fix-map (fn [^InputMap m]
+                      (let [default-modifier (-> (Toolkit/getDefaultToolkit) (.getMenuShortcutKeyMask))
+                            shift InputEvent/SHIFT_MASK]
+                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_LEFT (bit-or default-modifier shift)) DefaultEditorKit/selectionBeginLineAction)
+                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_RIGHT (bit-or default-modifier shift)) DefaultEditorKit/selectionEndLineAction)
+                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_HOME shift) DefaultEditorKit/selectionBeginAction)
+                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_END shift) DefaultEditorKit/selectionEndAction)
+                        m))
+            base-map (RSyntaxTextAreaDefaultInputMap.)
+            new-map (fix-map base-map)]
+        (.setInputMap t JComponent/WHEN_FOCUSED new-map)))
+    t))
 
 
 (defn create-worksheet-frame
@@ -52,10 +73,10 @@
         ;            (let [[_ _ w h] dimensions]
         ;              [h :by w]))
         ;_ (println (format "pref size: %s" pref-size))
-        query-text-area (seesaw.rsyntax/text-area :id :sql
-                                                  :syntax :sql
-                                                  :columns 80
-                                                  :rows 25)
+        query-text-area (fix-textarea-bindings (seesaw.rsyntax/text-area :id :sql
+                                                                         :syntax :sql
+                                                                         :columns 80
+                                                                         :rows 25))
         query-text-area-scrollable (seesaw.core/scrollable query-text-area)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
@@ -139,6 +160,7 @@
   (assert (not= frame nil))
   (let [ctrl-enter-keystroke (seesaw.keystroke/keystroke "control ENTER")
         sql-text-area (seesaw.core/select frame [:#sql])]
+    (assert (not (nil? sql-text-area)))
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press handler ctrl-enter-keystroke))))
 
 
