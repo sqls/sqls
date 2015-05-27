@@ -18,23 +18,20 @@
            [org.fife.ui.rsyntaxtextarea RSyntaxTextAreaDefaultInputMap]])
 
 
-(defn fix-textarea-bindings
+(defn fix-textarea-bindings!
   ^JTextArea
   [^JTextArea t]
   (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))]
     (when is-osx
-      (let [fix-map (fn [^InputMap m]
-                      (let [default-modifier (-> (Toolkit/getDefaultToolkit) (.getMenuShortcutKeyMask))
-                            shift InputEvent/SHIFT_MASK]
-                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_LEFT (bit-or default-modifier shift)) DefaultEditorKit/selectionBeginLineAction)
-                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_RIGHT (bit-or default-modifier shift)) DefaultEditorKit/selectionEndLineAction)
-                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_HOME shift) DefaultEditorKit/selectionBeginAction)
-                        (.put m (KeyStroke/getKeyStroke KeyEvent/VK_END shift) DefaultEditorKit/selectionEndAction)
-                        m))
-            base-map (RSyntaxTextAreaDefaultInputMap.)
-            new-map (fix-map base-map)]
-        (.setInputMap t JComponent/WHEN_FOCUSED new-map)))
-    t))
+      (let [m (.getInputMap t)]
+        (assert (not (nil? m)))
+        (let [default-modifier (-> (Toolkit/getDefaultToolkit) (.getMenuShortcutKeyMask))
+              shift InputEvent/SHIFT_MASK]
+          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_LEFT (bit-or default-modifier shift)) DefaultEditorKit/selectionBeginLineAction)
+          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_RIGHT (bit-or default-modifier shift)) DefaultEditorKit/selectionEndLineAction)
+          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_HOME shift) DefaultEditorKit/selectionBeginAction)
+          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_END shift) DefaultEditorKit/selectionEndAction)))))
+  t)
 
 
 (defn create-worksheet-frame
@@ -73,10 +70,10 @@
         ;            (let [[_ _ w h] dimensions]
         ;              [h :by w]))
         ;_ (println (format "pref size: %s" pref-size))
-        query-text-area (fix-textarea-bindings (seesaw.rsyntax/text-area :id :sql
-                                                                         :syntax :sql
-                                                                         :columns 80
-                                                                         :rows 25))
+        query-text-area (fix-textarea-bindings! (seesaw.rsyntax/text-area :id :sql
+                                                                          :syntax :sql
+                                                                          :columns 80
+                                                                          :rows 25))
         query-text-area-scrollable (seesaw.core/scrollable query-text-area)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
