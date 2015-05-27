@@ -14,13 +14,13 @@
                 name="SQLs"
                 displayname="SQLs"
                 identifier="cx.hell.sqls"
-                shortversion="0.1.1"
-                version="0.1.1"
+                shortversion="0.1.2"
+                version="0.1.2"
                 applicationCategory="public.app-category.developer-tools"
                 mainclassname="sqls.core"
                 jvmrequired="1.7"
                 icon="resources/sqls.icns">
-            <classpath file="target/uberjar/sqls-0.1.1-standalone.jar"/>
+            <classpath file="target/uberjar/sqls-0.1.2-standalone.jar"/>
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>
