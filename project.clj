@@ -18,4 +18,4 @@
   :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}
              :dev {:global-vars {*warn-on-reflection* true}
-                   :jvm-opts ["-Xms4M" "-Xmx1G" "-XX:+PrintGC" "-XX:+UseG1GC"]}})
+                   :jvm-opts ["-Xms1G" "-Xmx4G" "-XX:+PrintGC" "-XX:+PrintGCDateStamps" "-XX:+UseG1GC" "-XX:MaxGCPauseMillis=1"]}})
