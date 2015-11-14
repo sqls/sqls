@@ -350,16 +350,16 @@
                                                     {:title "Log" :content log-panel}])
         menu-panel (seesaw.core/horizontal-panel :id :menu-panel
                                                  :items [
-                                                         (seesaw.core/button :id :new
-                                                                             :icon (seesaw.icon/icon "new.png"))
-                                                         (seesaw.core/button :id :save
-                                                                             :icon (seesaw.icon/icon "floppy.png"))
-                                                         (seesaw.core/button :id :open
-                                                                             :icon (seesaw.icon/icon "open.png"))
+                                                         ; (seesaw.core/button :id :new
+                                                         ;                     :icon (seesaw.icon/icon "new.png"))
+                                                         ; (seesaw.core/button :id :save
+                                                         ;                     :icon (seesaw.icon/icon "floppy.png"))
+                                                         ; (seesaw.core/button :id :open
+                                                         ;                     :icon (seesaw.icon/icon "open.png"))
                                                          ; (seesaw.core/button :id :explain
                                                          ;                     :text "Explain plan")
-                                                         (seesaw.core/button :id :execute
-                                                                             :text "Execute")
+                                                         ; (seesaw.core/button :id :execute
+                                                         ;                     :text "Execute")
                                                          (seesaw.core/button :id :commit
                                                                              :text "Commit")
                                                          (seesaw.core/button :id :rollback
