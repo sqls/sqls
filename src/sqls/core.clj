@@ -78,11 +78,18 @@
   - old-conn-data - old connection data if editing, nil if saving new connection,
   - new-conn-data - new connection data to be stored in settings and displayed in frame.
   "
-  [sqls-atom _old-conn-data conn-data]
+  [sqls-atom connections-atom _old-conn-data conn-data]
   (let [conn-list-win (:conn-list @sqls-atom)
         conf-dir (:conf-dir @sqls-atom)
-        new-connections (stor/add-connection! conf-dir conn-data)]
-    (set-conns! conn-list-win new-connections)))
+        new-conns (stor/add-connection! conf-dir conn-data)
+        new-conns-is-enabled (for [conn new-conns]
+                              [(:name conn)
+                               (nil? (-> @sqls-atom :worksheets (get (:name conn))))])]
+    (set-conns! conn-list-win new-conns)
+    (doseq [[c e] new-conns-is-enabled]
+      (if e
+        (enable-conn! conn-list-win c)
+        (disable-conn! conn-list-win c)))))
 
 (defn test-conn!
   "Test connection. Return a map of:
@@ -207,7 +214,7 @@
                                  atom)
            drivers (get-plugins-conns-drivers builtin-plugins @connections-atom)
            handlers {:create-worksheet (partial create-worksheet! connections-atom sqls-atom ui exit-on-close?)
-                     :save-conn (partial save-conn! sqls-atom)
+                     :save-conn (partial save-conn! sqls-atom connections-atom)
                      :test-conn test-conn!
                      :delete-connection! (partial stor/delete-connection! conf-dir)
                      :conn-list-closed (partial on-conn-list-closed! exit-on-close? sqls-atom)}

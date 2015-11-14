@@ -146,7 +146,6 @@
 (defn enable-conn!
   [conns-atom conn-name]
   {:pre [string? conn-name]}
-  (println (format "enable-conn %s" conn-name))
   (swap! conns-atom conj conn-name))
 
 (defn disable-conn!
