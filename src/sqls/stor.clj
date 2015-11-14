@@ -31,14 +31,21 @@
           (every? (partial instance? Conn) %)]}
   (debugf "loading connections…")
   (try
-    (map
-      #(model/->conn (% "name")
-                     (% "desc")
-                     (% "class")
-                     (% "jar")
-                     (% "jdbc-conn-str"))
-      (json/read-str (slurp (util/path-join [conf-dir "connections.json"]))))
-    (catch Exception _ nil)))
+    (->> (util/path-join [conf-dir "connections.json"])
+         slurp
+         json/read-str
+         (map
+           (fn [j]
+             (try
+               (model/->conn (j "name")
+                             (j "desc")
+                             (j "class")
+                             (j "jar")
+                             (or (j "conn")
+                                 (j "jdbc-conn-str")))
+               (catch Throwable e
+                 (println (format "exception while parsing connections: %s" e))))))
+         (filter (complement nil?)))))
 
 (defn save-connections!
   "Write connections to connections.json"
@@ -76,9 +83,10 @@
   "Delete connection by name."
   [^String conf-dir
    ^String name]
+  (assert (not (nil? conf-dir)))
   (assert (not= name nil))
   (let [connections (load-connections! conf-dir)
-        connections-without-deleted (remove #(= (% "name") name) connections)]
+        connections-without-deleted (remove #(= (:name %) name) connections)]
     (save-connections! conf-dir connections-without-deleted)
     connections-without-deleted))
 

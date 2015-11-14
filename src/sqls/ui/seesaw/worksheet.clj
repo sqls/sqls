@@ -5,8 +5,7 @@
             seesaw.core
             seesaw.keystroke
             seesaw.rsyntax
-            seesaw.table
-            [seesaw.dev :refer [show-events]])
+            seesaw.table)
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.util :refer [str-or-nil?]])
@@ -380,7 +379,6 @@
                           :title (format "SQL Worksheet: %s" conn-name)
                           :content border-panel
                           :on-close :dispose)]
-    (show-events worksheet-frame)
     (seesaw.core/pack! worksheet-frame)
     (if contents
       (seesaw.core/config! query-text-area :text contents))

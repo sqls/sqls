@@ -150,7 +150,7 @@
 
 (defn warnf
   [fmt & args]
-  (println (apply format args)))
+  (println (apply format fmt args)))
 
 
 (defn spy
