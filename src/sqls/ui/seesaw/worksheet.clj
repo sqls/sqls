@@ -50,6 +50,11 @@
     (assert (not (nil? sql-text-area)))
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler ctrl-enter-keystroke))))
 
+(defn set-on-commit-handler!
+  [frame handler]
+  (let [btn-commit (seesaw.core/select frame [:#commit])]
+    (seesaw.core/listen btn-commit :action (fn [_] (handler)))))
+
 (defn set-on-rollback-handler!
   [frame handler]
   (let [btn-rollback (seesaw.core/select frame [:#rollback])]
@@ -59,10 +64,12 @@
   [^JFrame frame
    handlers]
   {:pre [(:ctrl-enter handlers)
+         (:commit handlers)
          (:rollback handlers)
          (:closed handlers)]}
   (set-ctrl-enter-handler! frame (:ctrl-enter handlers))
   (set-on-rollback-handler! frame (:rollback handlers))
+  (set-on-commit-handler! frame (:commit handlers))
   (seesaw.core/listen frame :window-closed (fn [_] ((:closed handlers)))))
 
 (defn get-contents!
@@ -418,19 +425,12 @@
 ;     (assert (not= btn-explain nil))
 ;     (seesaw.core/listen btn-explain :action (fn [e] (handler)))))
 
-
-(defn set-on-commit-handler
-  [frame handler]
-  (let [btn-commit (seesaw.core/select frame [:#commit])]
-    (seesaw.core/listen btn-commit :action (fn [_] (handler)))))
-
 (defn set-on-execute-handler
   "Set Execute button handler."
   [frame handler]
   (let [btn-execute (seesaw.core/select frame [:#execute])]
     (assert (not= btn-execute nil))
     (seesaw.core/listen btn-execute :action (fn [_] (handler)))))
-
 
 (defn set-on-new-handler
   "Set New button handler."
@@ -439,14 +439,12 @@
     (assert (not= btn-new nil))
     (seesaw.core/listen btn-new :action (fn [_] (handler)))))
 
-
 (defn set-on-save-handler
   "Set Save button handler."
   [frame handler]
   (let [btn-save (seesaw.core/select frame [:#save])]
     (assert (not= btn-save nil))
     (seesaw.core/listen btn-save :action (fn [_] (handler)))))
-
 
 (defn set-on-open-handler
   [frame handler]
