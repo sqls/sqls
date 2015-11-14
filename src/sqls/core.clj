@@ -164,8 +164,7 @@
     (if (contains? (:worksheets @sqls-atom) conn-name)
       (warnf "worksheet already present in sqls state")
       (let [worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
-            worksheet-handlers {:save-worksheet-data (fn [data]
-                                                       (println (format "save data for worksheet %s" conn-name)))
+            worksheet-handlers {:save-worksheet-data (fn [data] (stor/save-worksheet-data! conf-dir conn-name data))
                                 :worksheet-closed (fn [conn-name]
                                                     (println (format "worksheet %s closed" conn-name))
                                                     (swap! sqls-atom update :worksheets dissoc conn-name)
