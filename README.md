@@ -3,6 +3,11 @@
 sqls is simple SQL client for programmers and engineers.
 It's goal is to make running SQL queries easier.
 
+## Screenshots
+
+![SQLs Conn List Window](screenshots/sqls-conn-list.png?raw=true "SQLs Conn List Window")
+![SQLs Worksheet Window](screenshots/sqls-worksheet.png?raw=true "SQLs Worksheet Window")
+
 ## Installation
 
 1. Make sure you've got fairly recent Java Runtime Environment installed (you can get one at http://java.oracle.com/),
