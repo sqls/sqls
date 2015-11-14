@@ -45,7 +45,9 @@
                                  (j "jdbc-conn-str")))
                (catch Throwable e
                  (println (format "exception while parsing connections: %s" e))))))
-         (filter (complement nil?)))))
+         (filter (complement nil?)))
+    (catch Exception e
+      (println (format "exception while loading connections: %s" e)))))
 
 (defn save-connections!
   "Write connections to connections.json"
