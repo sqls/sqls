@@ -168,16 +168,14 @@
 
 (defn execute!
   "Execute SQL on connection.
-  This function should accept both row-returning and non-row-returning statements
-  (that this distinction is different than DML vs SELECT statements,
-  as some DML statements return rows).
-
+  This function should accept both row-returning and non-row-returning statements.
   This functions returns a cursor of query results or nil if this SQL command does not
   return rows."
   [^java.sql.Connection conn
    ^String sql]
   (assert (not= conn nil))
   (let [stmt (clojure.java.jdbc/prepare-statement conn sql)
+        _ (.setFetchSize stmt 128)
         has-result-set (.execute stmt)]
     (if has-result-set
       (clojure.java.jdbc/result-set-seq (.getResultSet stmt) :as-arrays? true)
