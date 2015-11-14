@@ -1,9 +1,11 @@
 (ns sqls.ui.seesaw.conn-list
   "Conn list window UI implementation."
   (:require
+    [clojure.pprint :refer [pprint]]
     seesaw.core
     [seesaw.bind :as b]
     seesaw.table
+    [sqls.model :refer [conn?]]
     [sqls.util :refer [all? any?]]
     [sqls.ui.proto :refer [ConnListWindow show-conn-list-window!]]
     sqls.ui.seesaw.conn-edit)
@@ -152,6 +154,17 @@
   {:pre [string? conn-name]}
   (swap! conns-atom disj conn-name))
 
+(defn set-conns!
+  [table conns]
+  {:pre [(sequential? conns)
+         (every? conn? conns)
+         (every? :name conns)]}
+  (let [rows (map build-connection-list-item conns)]
+    (seesaw.table/clear! table)
+    (when-not (empty? rows)
+      (doseq [[i row] (map vector (range) rows)]
+        (seesaw.table/insert-at! table i row)))))
+
 (defn create-conn-list-window!
   "Create login window.
   Parameters:
@@ -209,7 +222,8 @@
                                (seesaw.core/pack! frame)
                                (seesaw.core/show! frame))
                              (enable-conn! [_ conn-name] (enable-conn! enabled-connections-atom conn-name))
-                             (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name)))]
+                             (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name))
+                             (set-conns! [_ conns] (set-conns! conn-list-table conns)))]
       (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-connect :action (partial on-btn-connect-click! frame conn-list-window (:create-worksheet handlers)))

@@ -9,13 +9,11 @@
   (:import [java.io IOException]
            [sqls.model Conn]))
 
-
 (defn load-settings!
   [conf-dir]
   (try
     (json/read-str (slurp (util/path-join [conf-dir "settings.json"])))
     (catch Exception _ (hash-map))))
-
 
 (defn write-settings!
   [^String conf-dir
@@ -47,7 +45,8 @@
                  (println (format "exception while parsing connections: %s" e))))))
          (filter (complement nil?)))
     (catch Exception e
-      (println (format "exception while loading connections: %s" e)))))
+      (println (format "exception while loading connections: %s" e))
+      [])))
 
 (defn save-connections!
   "Write connections to connections.json"
@@ -55,27 +54,24 @@
    connections]
   (spit (util/path-join [conf-dir "connections.json"]) (json/write-str connections)))
 
-
 (defn add-connection!
   "Add connection to connection list in conf-dir, return new list.
 
   Parameters:
 
-  - conn-data is a map with following keys:
-
-    - name - name of the connection,
-    - jdbc-conn-str - jdbc connection URI,
-    - desc - description,
-    - driver - JDBC connection driver name.
+  - conn-data is sqls.model.Conn instance.
 
   Returns new connection list."
   [^String conf-dir
    conn-data]
+  {:pre [(not (nil? conn-data))
+         (not (nil? (:name conn-data)))
+         (string? (:name conn-data))]}
   (let [connections (load-connections! conf-dir)
-        connections-without-new (remove #(= (% "name") (conn-data "name")) connections)
-        keyfn (fn [conn-data] [(conn-data "name")
-                               (conn-data "class")
-                               (conn-data "desc")])
+        connections-without-new (remove #(= (:name %) (:name conn-data)) connections)
+        keyfn (fn [conn-data] [(:name conn-data)
+                               (:class conn-data)
+                               (:desc conn-data)])
         connections-with-new (sort-by keyfn (cons conn-data connections-without-new))]
     (save-connections! conf-dir connections-with-new)
     connections-with-new))

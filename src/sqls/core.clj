@@ -63,27 +63,26 @@
   SQLs atom is for now map and it contains following keys:
 
   - :worksheets - map of worksheets, by conn name,
-  - :conn-list - truthy if conn-list is on screen,
+  - :conn-list - conn-list window or nil,
   - :conf-dir - current value of conf-dir, configuration files go there."
   [conf-dir]
   (let [s {:worksheets {}
            :conf-dir   conf-dir
-           :conn-list  false}]
+           :conn-list  nil}]
     (atom s)))
-
 
 (defn save-conn!
   "Save connection.
   Parameters:
-  - conf-dir,
-  - conn-list-win - connection list frame (something that satisfies conn list proto),
+  - sqls-atom - sqls app state, must contain :conn-list,
   - old-conn-data - old connection data if editing, nil if saving new connection,
   - new-conn-data - new connection data to be stored in settings and displayed in frame.
   "
-  [conf-dir conn-list-win _old-conn-data conn-data]
-  (let [new-connections (stor/add-connection! conf-dir conn-data)]
+  [sqls-atom _old-conn-data conn-data]
+  (let [conn-list-win (:conn-list @sqls-atom)
+        conf-dir (:conf-dir @sqls-atom)
+        new-connections (stor/add-connection! conf-dir conn-data)]
     (set-conns! conn-list-win new-connections)))
-
 
 (defn test-conn!
   "Test connection. Return a map of:
@@ -209,7 +208,7 @@
                                  atom)
            drivers (get-plugins-conns-drivers builtin-plugins @connections-atom)
            handlers {:create-worksheet (partial create-worksheet! connections-atom sqls-atom ui exit-on-close?)
-                     :save-conn (partial save-conn! conf-dir)
+                     :save-conn (partial save-conn! sqls-atom)
                      :test-conn test-conn!
                      :delete-connection! (partial stor/delete-connection! conf-dir)
                      :conn-list-closed (partial on-conn-list-closed! exit-on-close? sqls-atom)}
@@ -217,7 +216,7 @@
                                                                                                vals
                                                                                                (sort-by :name)))]
        (println (format "conn-list-window: %s" conn-list-window))
-       (swap! sqls-atom assoc :conn-list true)
+       (swap! sqls-atom assoc :conn-list conn-list-window)
        (show-conn-list-window! conn-list-window)))))
 
 (defn -main

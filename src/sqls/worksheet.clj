@@ -12,13 +12,11 @@
            [java.sql Connection SQLException]
            [sqls.ui.proto UI WorksheetWindow]))
 
-
 (defn worksheet-agent-error-handler
   "Error handler for worksheet agents."
   [^Agent a
    ^Throwable e]
   (println (format-exception e)))
-
 
 (defn on-worksheet-window-closed
   "Called from Worksheet UI when windows was closed.
@@ -44,7 +42,6 @@
     (assert (instance? String conn-name))
     (reset! worksheet {})
     (remove-worksheet-from-sqls conn-name)))
-
 
 (defn create-worksheet!
   "Create worksheet atom, including worksheet frame.
@@ -101,7 +98,6 @@
                          :handlers handlers})]
     worksheet))
 
-
 (defn connect-worksheet!
   "Create JDBC connection for this worksheet.
   Returns worksheet with conn field set."
@@ -119,7 +115,6 @@
         (swap! worksheet assoc :conn conn)
         worksheet)
       (sqls.ui.proto/show-error! ui msg))))
-
 
 (defn show-results!
   "Display results from cursor in worksheet frame."
@@ -169,12 +164,6 @@
           (sqls.ui.proto/status-text! win "Error")
           (swap! worksheet assoc :state :idle)))))
   worksheet-agent-state)
-
-
-; (defn explain!
-;   [worksheet]
-;   (println "explain!"))
-
 
 (defn on-ctrl-enter!
   "Executed by frame on Ctrl-Enter press.

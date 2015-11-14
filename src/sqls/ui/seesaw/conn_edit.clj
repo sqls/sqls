@@ -18,14 +18,13 @@
                             vertical-panel
                             ]])
   (:require seesaw.mig
+            [sqls.model :refer [->conn]]
             [sqls.util :refer [infof spy]]))
-
 
 (defn on-btn-save-connection-cancel
   "Just close the dialog"
   [e]
   (dispose! e))
-
 
 (defn get-conn-data
   "Extract conn data from dialog."
@@ -35,24 +34,21 @@
         conn-class (value (select root [:#class]))
         conn-jdbc-conn-str (value (select root [:#jdbc-conn-str]))
         conn-desc (value (select root [:#desc]))]
-    {"name" conn-name
-     "jar" conn-jar
-     "class" conn-class
-     "jdbc-conn-str" conn-jdbc-conn-str
-     "desc" conn-desc}))
+    (->conn conn-name
+            conn-desc
+            conn-class
+            conn-jar
+            conn-jdbc-conn-str)))
 
-
-(defn on-btn-save-connection-ok
+(defn on-btn-save-connection-ok!
   "Handle Save button click in edit-connection dialog.
-
-  All but last parameter should be provided by wrapping this function with partial.
-  "
-  [conn-list-frame save! old-conn-data e]
+  All but last parameter should be provided by wrapping this function with partial."
+  [save! old-conn-data e]
+  {:pre [(ifn? save!)]}
   (let [root (to-root e)
         conn-data (get-conn-data root)]
-    (save! conn-list-frame old-conn-data conn-data)
+    (save! old-conn-data conn-data)
     (dispose! e)))
-
 
 (defn show-test-success!
   "Display message indicating successful connection test."
@@ -105,11 +101,11 @@
                (coll? drivers)
                (not (empty? drivers))
                (every? sequential? drivers))))]}
-  (let [conn-name (get conn-data "name")
-        conn-jar (get conn-data "jar")
-        conn-class (get conn-data "class")
-        conn-str (get conn-data "jdbc-conn-str")
-        conn-desc (get conn-data "desc")
+  (let [conn-name (:name conn-data)
+        conn-jar (:jar conn-data)
+        conn-class (:class conn-data)
+        conn-str (:conn conn-data)
+        conn-desc (:desc conn-data)
         label-texts ["Name"
                      "Driver JAR file (optional)"
                      "Driver Class"
@@ -131,7 +127,7 @@
                 (text :id :desc :text conn-desc)]
         buttons [(button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])
                  (button :id :test :text "Test" :listen [:action (partial on-btn-test-connection test-conn!)])
-                 (button :id :ok :text "Ok" :listen [:action (partial on-btn-save-connection-ok conn-list-frame save! conn-data)])]
+                 (button :id :ok :text "Ok" :listen [:action (partial on-btn-save-connection-ok! save! conn-data)])]
         label-to-mig-panel-item (fn [w] [w])
         field-to-mig-panel-item (fn [w] [w "grow, wrap"])
         label-mig-panel-items (map label-to-mig-panel-item labels)
