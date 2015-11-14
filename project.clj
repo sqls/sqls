@@ -13,6 +13,7 @@
                  [seesaw "1.4.5"]]
   :main sqls.core
   :java-source-paths ["src"]
+  :javac-options ["-target" "1.7" "-source" "1.7"]
   :target-path "target/%s"
   :plugins [[codox "0.8.13"]]
   :codox {:output-dir "doc/codox"}
