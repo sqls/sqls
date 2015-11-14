@@ -1,5 +1,4 @@
-
-(ns sqls.ui.conn-edit
+(ns sqls.ui.seesaw.conn-edit
   "UI code for add or edit connection"
   (:use [seesaw.core :only [
                             alert
@@ -87,7 +86,7 @@
       (show-test-failure! (to-root e) (:desc result)))))
 
 
-(defn create-edit-connection-frame
+(defn create-edit-connection-frame!
   "Create add-or-edit connection dialog.
 
   Parameters:

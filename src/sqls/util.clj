@@ -133,6 +133,11 @@
     (.getParent df)))
 
 
+(defn debugf
+  [fmt & args]
+  (println (apply format fmt args)))
+
+
 (defn info
   [& args]
   (apply println args))
@@ -141,6 +146,11 @@
 (defn infof
   [fmt & args]
   (println (apply format fmt args)))
+
+
+(defn warnf
+  [fmt & args]
+  (println (apply format args)))
 
 
 (defn spy

@@ -22,8 +22,8 @@
 (defn connect-without-jar!
   "Connect using builtin classpath."
   [conn-data]
-  (let [conn-class (conn-data "class")
-        conn-str (conn-data "jdbc-conn-str")]
+  (let [conn-class (:class conn-data)
+        conn-str (:conn conn-data)]
     (if (not (empty conn-class))
       (try
         (Class/forName conn-class)
@@ -40,13 +40,12 @@
   Parameters:
 
   - conn-data - defines connection metadata,
-  - urls - nonempty coll of urls.
-  "
+  - urls - nonempty coll of urls."
   [^clojure.lang.IPersistentMap conn-data urls]
   (assert (not= urls nil))
   (assert (> (count urls) 0))
-  (let [conn-class (conn-data "class")
-        conn-str (conn-data "jdbc-conn-str")
+  (let [conn-class (:class conn-data)
+        conn-str (:conn conn-data)
         url-class-loader (java.net.URLClassLoader. (into-array urls))
         _ (println "loader" url-class-loader)
         cls (.loadClass url-class-loader conn-class)]
@@ -71,7 +70,7 @@
   It's absolute path if it starts with slash.
   It's relative path otherwise."
   [conn-data]
-  (let [path (conn-data "jar")
+  (let [path (:jar conn-data)
         absolute-path (util/path-to-absolute-path path)]
     (connect-with-absolute-path! conn-data absolute-path)))
 
@@ -133,14 +132,15 @@
 
   - conn - nil if could not connect,
   - msg - nil if connected,
-  - desc - nil if connected, otherwise optionally verbose error description.
-  "
-  ^IPersistentMap
-  [^IPersistentMap conn-data]
-  (assert (not= conn-data nil))
-  (let [^String conn-str (conn-data "jdbc-conn-str")
-        ^String conn-class (conn-data "class")
-        ^String conn-jar (conn-data "jar")]
+  - desc - nil if connected, otherwise optionally verbose error description."
+  [conn-data]
+  {:pre [(not (nil? conn-data))
+         (not (nil? (:name conn-data)))
+         (not (nil? (:class conn-data)))
+         (not (nil? (:conn conn-data)))]}
+  (let [^String conn-str (:conn conn-data)
+        ^String conn-class (:class conn-data)
+        ^String conn-jar (:jar conn-data)]
     (try
       (let [^java.sql.Connection conn (if (not (blank? conn-jar))
                                         (connect-with-path! conn-data)

@@ -1,12 +1,13 @@
-
 (ns sqls.stor
   "Storage support.
   Saving and loading of preferences, connection data, worksheet state etc."
-  (:use [clojure.tools.logging :only (debug info)])
-  (:require [clojure.data.json :as json])
-  (:require [sqls.util :as util]
-            [sqls.util :refer [assert-not-nil]])
-  (:import [java.io IOException]))
+  (:require [clojure.tools.logging :refer [debug info]]
+            [clojure.data.json :as json])
+  (:require [sqls.model :as model]
+            [sqls.util :as util]
+            [sqls.util :refer [assert-not-nil debugf]])
+  (:import [java.io IOException]
+           [sqls.model Conn]))
 
 
 (defn load-settings!
@@ -21,14 +22,23 @@
    settings]
   (spit (util/path-join [conf-dir "settings.json"]) (json/write-str settings)))
 
-
 (defn load-connections!
-  "Load connections from connections.json."
+  "Load connections from connections.json.
+  Returns ordered collection of sqls.model.Conn instances."
   [^String conf-dir]
+  {:pre [(not (nil? conf-dir))]
+   :post [(sequential? %)
+          (every? (partial instance? Conn) %)]}
+  (debugf "loading connections…")
   (try
-    (json/read-str (slurp (util/path-join [conf-dir "connections.json"])))
+    (map
+      #(model/->conn (% "name")
+                     (% "desc")
+                     (% "class")
+                     (% "jar")
+                     (% "jdbc-conn-str"))
+      (json/read-str (slurp (util/path-join [conf-dir "connections.json"]))))
     (catch Exception _ nil)))
-
 
 (defn save-connections!
   "Write connections to connections.json"
@@ -72,21 +82,16 @@
     (save-connections! conf-dir connections-without-deleted)
     connections-without-deleted))
 
-
 (defn load-worksheet-data!
-  "Read current worksheet data.
-  Takes connection name. For now all connections are worksheets (1-1 relationship) in terms of state.
-  This obviously is needs to be designed - either we don't allow many worksheets of one conn,
-  or we have many states per conn. Either way it's to be chosen later.
-
+  "Read worksheet data like worksheet position and contents.
+  Takes connection name.
   Returns a map with worksheet data.
-
-  Data file is called \"worksheetdata.json\" and it's for now located in current directory.
+  Data file is called \"worksheetdata.json\" and it's located in conf-dir.
   "
   [^String conf-dir
    ^String conn-name]
-  (assert-not-nil conf-dir)
-  (assert-not-nil conn-name)
+  {:pre [(not (nil? conf-dir))
+         (not (nil? conn-name))]}
   (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
         datas (try
                 (-> (slurp worksheet-data-path)
@@ -95,9 +100,7 @@
     (if datas
       (let [wd (datas (keyword conn-name))]
         (assert (or (nil? wd) (map? wd)))
-        (println (format "loaded worksheet data for \"%s\": %s" conn-name wd))
         wd))))
-
 
 (defn save-worksheet-data!
   "Save worksheet state."

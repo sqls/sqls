@@ -1,24 +1,26 @@
-
-(ns sqls.ui.conn-list
-  "Conn list window UI"
-  (:import [javax.swing JFrame]
-           [clojure.lang Atom])
+(ns sqls.ui.seesaw.conn-list
+  "Conn list window UI implementation."
   (:require
     seesaw.core
+    [seesaw.bind :as b]
+    [seesaw.dev :refer [show-events]]
     seesaw.table
-    [seesaw.bind :as b])
-  (:require [sqls.util :refer [all? any?]]
-            sqls.ui.conn-edit))
+    [sqls.util :refer [all? any?]]
+    [sqls.ui.proto :refer [ConnListWindow show-conn-list-window!]]
+    sqls.ui.seesaw.conn-edit)
+  (:import
+    [clojure.lang Atom]
+    [javax.swing JFrame]))
 
 
 (defn build-connection-list-item
   "Convert one connection to UI item struct."
   [conn]
   (assert (not= conn nil))
-  {:name (conn "name")
-   :desc (conn "desc")
-   :class (conn "class")
-   :jar (conn "jar")
+  {:name (:name conn)
+   :desc (:desc conn)
+   :class (:class conn)
+   :jar (:jar conn)
    :conn-data conn})
 
 
@@ -42,8 +44,7 @@
 
 (defn set-conn-list-frame-bindings!
   [^JFrame frame
-   ^Atom sqls-atom
-   is-connectable?]
+   ^Atom enabled-connections-atom]
   (let [conn-list-table (seesaw.core/select frame [:#conn-list-table])
         btn-edit (seesaw.core/select frame [:#btn-edit])
         btn-connect (seesaw.core/select frame [:#btn-connect])
@@ -52,7 +53,8 @@
     (assert (not= btn-connect nil))
     (assert (not= btn-delete nil))
     (assert (not= btn-edit nil))
-    (let [src-on-list-chain (b/bind
+    (let [is-connectable? (fn [^String conn-name] (contains? @enabled-connections-atom conn-name))
+          src-on-list-chain (b/bind
                               (b/selection conn-list-table)
                               (b/transform (fn
                                              [sel]
@@ -63,7 +65,7 @@
                                                  (is-connectable? name))
                                                false))))
           src-on-atom-chain (b/bind
-                              sqls-atom
+                              enabled-connections-atom
                               (b/transform (fn
                                              [v]
                                              (let [worksheets (:worksheets v)
@@ -74,7 +76,8 @@
                                                    _ (assert (not= name nil))
                                                    r (is-connectable? name)
                                                    _ (println (format "is connectable %s? -> %s" name r))]
-                                               r))))]
+                                               r))))
+          ]
       (doseq [src [src-on-list-chain src-on-atom-chain]]
         (b/bind
           src
@@ -94,25 +97,22 @@
     conn-data))
 
 
-(defn on-btn-add-click
+(defn on-btn-add-click!
   "Handle add connection button in conn list frame."
   [drivers save! test-conn! e]
-  (let [add-connection-frame (sqls.ui.conn-edit/create-edit-connection-frame
+  (let [add-connection-frame (sqls.ui.seesaw.conn-edit/create-edit-connection-frame!
                                (seesaw.core/to-root e)
                                nil
                                drivers
                                save!
                                test-conn!)]
-    (seesaw.core/show! add-connection-frame)
-    )
-  )
+    (seesaw.core/show! add-connection-frame)))
 
-
-(defn on-btn-edit-click
+(defn on-btn-edit-click!
   "Edit button was clicked."
   [conn-list-frame drivers save! test-conn! _e]
   (let [conn-data (get-selected-conn-data conn-list-frame)
-        edit-connection-frame (sqls.ui.conn-edit/create-edit-connection-frame
+        edit-connection-frame (sqls.ui.seesaw.conn-edit/create-edit-connection-frame!
                                 conn-list-frame
                                 conn-data
                                 drivers
@@ -121,7 +121,7 @@
     (seesaw.core/show! edit-connection-frame)))
 
 
-(defn on-btn-delete-click
+(defn on-btn-delete-click!
   "User clicks delete button in connection list window.
   TODO: ask for confirmation asynchronously (but modally)."
   [delete-connection! e]
@@ -137,7 +137,7 @@
         (seesaw.core/config! conn-list-table :model (build-connection-list-model new-connections))))))
 
 
-(defn on-btn-connect-click
+(defn on-btn-connect-click!
   "Handle button Connect click action: open worksheet window bound to selected connection.
   Returns worksheet data structure that contains conn-data and frame.
 
@@ -146,12 +146,13 @@
   - conn-list-frame - parent frame,
   - create-worksheet! - function that sets up and creates worksheet (passed to create-login-ui).
   "
-  [conn-list-frame create-worksheet! _]
+  [conn-list-frame create-worksheet! _event]
   (let [conn-data (get-selected-conn-data conn-list-frame)]
-    (create-worksheet! conn-data)))
+    (assert conn-data)
+    (create-worksheet! (:name conn-data))))
 
 
-(defn create-login-ui
+(defn create-conn-list-window!
   "Create login window.
   Parameters:
 
@@ -160,36 +161,57 @@
 
     - create-worksheet - called when user clicks connect button,
     - save-conn - called when user clicks save/add in edit/add connection dialog,
+    - conn-list-closed - called after conn-list window is closed,
 
   - connections - list of connections do display."
-  [sqls-atom exit-on-close? drivers handlers _settings connections]
-  (let [delete-connection! (:delete-connection! handlers)
-        is-connectable? (:is-connectable? handlers)
-        btn-about (seesaw.core/button :id :btn-about :text "About")
+  [ui
+   about-text
+   drivers
+   handlers
+   connections]
+  {:pre [(not (nil? ui))
+         (map? handlers)
+         (:create-worksheet handlers)
+         (:conn-list-closed handlers)]}
+  (let [enabled-connections-atom (atom (apply hash-set (map :name connections)))
+        delete-connection! (:delete-connection! handlers)
+        btn-about (seesaw.core/button :id :btn-about :text "About" :listen [:action (fn [_] (sqls.ui.proto/show-about! ui about-text))])
         btn-add (seesaw.core/button :id :btn-new :text "Add")
         btn-edit (seesaw.core/button :id :btn-edit :text "Edit" :enabled? false)
         btn-delete (seesaw.core/button :id :btn-delete
                                        :text "Delete"
                                        :enabled? false
-                                       :listen [:action (partial on-btn-delete-click delete-connection!)])
+                                       :listen [:action (partial on-btn-delete-click! delete-connection!)])
         btn-connect (seesaw.core/button :id :btn-connect :text "Connect" :enabled? false)
+        conn-list-table (build-connection-list-table connections)
+        _ (assert (not (nil? conn-list-table)))
         frame (seesaw.core/frame
                 :title "SQLS"
+                :on-close :dispose
                 :content (seesaw.core/vertical-panel
                            :id :panel
                            :border 4
-                           :items [(seesaw.core/scrollable (build-connection-list-table connections))
+                           :items [(seesaw.core/scrollable conn-list-table)
                                    (seesaw.core/horizontal-panel :border 4
                                                                  :items [btn-about
                                                                          btn-add
                                                                          btn-edit
                                                                          btn-delete
                                                                          btn-connect])])
-                :on-close (if exit-on-close? :exit :dispose))]
-    (assert (not= nil is-connectable?))
-    (seesaw.core/listen btn-about :action (fn [_] ((:about handlers))))
-    (seesaw.core/listen btn-add :action (partial on-btn-add-click drivers (:save-conn handlers) (:test-conn handlers)))
-    (seesaw.core/listen btn-edit :action (partial on-btn-edit-click frame drivers (:save-conn handlers) (:test-conn handlers)))
-    (seesaw.core/listen btn-connect :action (partial on-btn-connect-click frame (:create-worksheet handlers)))
-    (set-conn-list-frame-bindings! frame sqls-atom is-connectable?)
-    frame))
+                )
+        ]
+    (show-events frame)
+    (seesaw.core/listen frame :window-closed (fn [_]
+                                               (println "window closed")
+                                               ((:conn-list-closed handlers))))
+    (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers (:save-conn handlers) (:test-conn handlers)))
+    (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers (:save-conn handlers) (:test-conn handlers)))
+    (seesaw.core/listen btn-connect :action (partial on-btn-connect-click! frame (:create-worksheet handlers)))
+    (set-conn-list-frame-bindings! frame enabled-connections-atom)
+    (reify
+      ConnListWindow
+      (show-conn-list-window!
+        [_]
+        (seesaw.core/pack! frame)
+        (seesaw.core/show! frame)))))
+
