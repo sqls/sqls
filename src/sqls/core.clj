@@ -6,9 +6,9 @@
   (:require sqls.jdbc
             io.aviso.logging
             io.aviso.repl
+            fipp.edn
             sqls.worksheet
             [sqls.conf :as conf]
-            [sqls.plugin :refer [DatabaseDriverPlugin classes]]
             [sqls.plugin.psql :refer [psql-plugin]]
             [sqls.plugin.sqlite :refer [sqlite-plugin]]
             [sqls.ui.seesaw :refer [create-ui!]]
@@ -24,7 +24,6 @@
                                    show-about!]]
             [sqls.util :refer [debugf info infof warnf]])
   (:import [java.sql Connection]
-           [clojure.lang Atom]
            [sqls.model Conn]))
 
 
@@ -32,11 +31,9 @@
   [["-c" "--conf-dir" "Config dir"]
    ["-h" "--help"]])
 
-
 (def builtin-plugins
   [psql-plugin
    sqlite-plugin])
-
 
 (defn usage
   [summary]
@@ -44,31 +41,33 @@
         summary]
        (string/join \newline)))
 
-
 (defn error-msg [errors]
   (str "The following errors occurred while parsing your command:\n\n"
        (string/join \newline errors)))
-
 
 (defn exit [status msg]
   (info msg)
   (System/exit status))
 
-
 (defn create-sqls-atom!
   "Create central data structure for SQLs.
   This is an Atom, since it's shared mutable data structure (shared between all worksheets).
-  It's required because we want stuff like explicit JVM stop when closing last frame (which requires
+  It's required because we want stuff like explicit JVM stop when closing last frame.
 
-  SQLs atom is for now map and it contains following keys:
+  SQLs atom is map and it contains following keys:
 
   - :worksheets - map of worksheets, by conn name,
   - :conn-list - conn-list window or nil,
+  - :connections - map of conn name to Conn record,
   - :conf-dir - current value of conf-dir, configuration files go there."
-  [conf-dir]
-  (let [s {:worksheets {}
-           :conf-dir   conf-dir
-           :conn-list  nil}]
+  [conf-dir connections]
+  {:pre [(string? conf-dir)
+         (map? connections)
+         (every? string? (keys connections))]}
+  (let [s {:worksheets  {}
+           :connections connections
+           :conf-dir    conf-dir
+           :conn-list   nil}]
     (atom s)))
 
 (defn save-conn!
@@ -78,14 +77,16 @@
   - old-conn-data - old connection data if editing, nil if saving new connection,
   - new-conn-data - new connection data to be stored in settings and displayed in frame.
   "
-  [sqls-atom connections-atom _old-conn-data conn-data]
+  [sqls-atom _old-conn-data conn-data]
   (let [conn-list-win (:conn-list @sqls-atom)
         conf-dir (:conf-dir @sqls-atom)
         new-conns (stor/add-connection! conf-dir conn-data)
+        _ (assert (sequential? new-conns))
         new-conns-is-enabled (for [conn new-conns]
                               [(:name conn)
                                (nil? (-> @sqls-atom :worksheets (get (:name conn))))])]
     (set-conns! conn-list-win new-conns)
+    (swap! sqls-atom assoc :connections (into {} (map (fn [conn] [(:name conn) conn]) new-conns)))
     (doseq [[c e] new-conns-is-enabled]
       (if e
         (enable-conn! conn-list-win c)
@@ -114,28 +115,38 @@
       {:ok false :desc (str e)})))
 
 (defn get-plugins-drivers
-  "Ask plugins for drivers"
+  "Ask plugins for known drivers."
   [plugins]
   {:pre [(or
            (nil? plugins)
            (and
              (sequential? plugins)
              (not (empty? plugins))))]
-   :post [(fn [y]
-            (or (nil? y)
-                (and (seq? y)
-                     (not (empty? y))
-                     (every? string? y))))]}
-   (apply concat (map classes plugins)))
+   :post [(or (nil? %)
+              (and (seq? %)
+                   (every? sequential? %)
+                   (every? #(= (count %) 2) %)))]}
+  (let [plugins-drivers (map (fn [p] (if-let [clfn (:classes p)]
+                                       (clfn)
+                                       []))
+                             plugins)]
+    (let [driver-pairs (apply concat plugins-drivers)]
+      driver-pairs)))
 
 (defn get-plugins-conns-drivers
   [plugins conns]
-  {:post [sequential?]}
+  {:pre [(sequential? plugins)
+         (map? conns)]
+   :post [sequential?]}
   (let [plugin-drivers (get-plugins-drivers plugins)
-        class-names (into {} plugin-drivers)
-        plugin-classes (map first plugin-drivers)
-        conn-classes (map #(get % "class") conns)
+        class-names (into {} plugin-drivers) ; e.g. foo.bar.BarDriver -> "Bar"
+        plugin-classes (map first plugin-drivers) ; all classes from plugins
+        conn-classes (map :class (vals conns))    ; all classes from existing conns
+        _ (assert (every? string? conn-classes)
+                  (format "Invalid conn classes: %s" (with-out-str (fipp.edn/pprint conn-classes))))
+        ;; unique list of classes from both plugins and drivers
         all-classes (sort (into #{} (concat plugin-classes conn-classes)))]
+    (assert (every? string? all-classes))
     (map (fn [c] [c (get class-names c)]) all-classes)))
 
 (defn maybe-exit!
@@ -150,30 +161,26 @@
 
 (defn on-conn-list-closed!
   [exit-on-close? sqls-atom]
-  (println (format "on-conn-list-closed"))
   (swap! sqls-atom assoc :conn-list false)
   (when exit-on-close?
     (maybe-exit! exit-on-close? sqls-atom)))
 
 (defn create-worksheet!
-  [connections-atom sqls-atom ui exit-on-close? conn-list-win conn-name]
-  {:pre [(not (nil? connections-atom))
-         (not (nil? @connections-atom))
-         (not (nil? sqls-atom))
+  [sqls-atom ui exit-on-close? conn-list-win conn-name]
+  {:pre [(not (nil? sqls-atom))
          (not (nil? @sqls-atom))
          (not (nil? conn-list-win))
          (not (nil? conn-name))
          (string? conn-name)]}
-  (println (format "trying to create worksheet for %s" conn-name))
-  (let [^Conn conn-data (@connections-atom conn-name)
+  (let [^Conn conn-data (-> @sqls-atom :connections (get conn-name))
         conf-dir (:conf-dir @sqls-atom)]
+    (assert (not (nil? conn-data)))
     (assert (not (nil? conf-dir)))
     (if (contains? (:worksheets @sqls-atom) conn-name)
       (warnf "worksheet already present in sqls state")
       (let [worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
             worksheet-handlers {:save-worksheet-data (fn [data] (stor/save-worksheet-data! conf-dir conn-name data))
                                 :worksheet-closed (fn [conn-name]
-                                                    (println (format "worksheet %s closed" conn-name))
                                                     (swap! sqls-atom update :worksheets dissoc conn-name)
                                                     (enable-conn! conn-list-win conn-name)
                                                     (maybe-exit! exit-on-close? sqls-atom))}
@@ -195,33 +202,32 @@
   ([exit-on-close?
    ^String cli-conf-dir]
    (io.aviso.repl/install-pretty-exceptions)
-   (infof "-sqls %s %s" exit-on-close? cli-conf-dir)
    (let [about-text (io/resource "about.txt")
          ^UI ui (create-ui! about-text {})]
-     (println (format "created ui: %s" ui))
      (let [cwd (System/getProperty "user.dir")
            conf-dir (if cli-conf-dir cli-conf-dir (conf/find-conf-dir cwd))
-           _ (infof "conf-dir: %s" conf-dir)
            _ (assert conf-dir)
-           sqls-atom (create-sqls-atom! conf-dir) ; sqls-atom holds high level mutable state of sqls
+           connections (->> (stor/load-connections! conf-dir)
+                            (map (fn [c] [(:name c) c]))
+                            (apply concat)
+                            (apply hash-map))
+           sqls-atom (create-sqls-atom! conf-dir connections) ; sqls-atom holds high level mutable state of sqls
            _ (conf/ensure-conf-dir! conf-dir)
            settings (stor/load-settings! conf-dir)
-           ;; this should be sqls-atom field?
-           connections-atom (->> (stor/load-connections! conf-dir)
-                                 (map (fn [c] [(:name c) c]))
-                                 (apply concat)
-                                 (apply hash-map)
-                                 atom)
-           drivers (get-plugins-conns-drivers builtin-plugins @connections-atom)
-           handlers {:create-worksheet (partial create-worksheet! connections-atom sqls-atom ui exit-on-close?)
-                     :save-conn (partial save-conn! sqls-atom connections-atom)
+           drivers (get-plugins-conns-drivers builtin-plugins connections)
+           handlers {:create-worksheet (partial create-worksheet! sqls-atom ui exit-on-close?)
+                     :save-conn (partial save-conn! sqls-atom)
                      :test-conn test-conn!
                      :delete-connection! (partial stor/delete-connection! conf-dir)
                      :conn-list-closed (partial on-conn-list-closed! exit-on-close? sqls-atom)}
-           ^ConnListWindow conn-list-window (create-conn-list-window! ui drivers handlers (->> @connections-atom
-                                                                                               vals
-                                                                                               (sort-by :name)))]
-       (println (format "conn-list-window: %s" conn-list-window))
+           ^ConnListWindow conn-list-window (create-conn-list-window! ui
+                                                                      drivers
+                                                                      builtin-plugins
+                                                                      handlers
+                                                                      (->> @sqls-atom
+                                                                           :connections
+                                                                           vals
+                                                                           (sort-by :name)))]
        (swap! sqls-atom assoc :conn-list conn-list-window)
        (show-conn-list-window! conn-list-window)))))
 

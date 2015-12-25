@@ -1,10 +1,11 @@
 (ns sqls.plugin.psql
-  "Adds support for PostgreSQL databases."
-  (:require [sqls.plugin :refer [DatabaseDriverPlugin]]))
+  "Adds support for PostgreSQL databases.")
+
+(defn classes
+  []
+  [["org.postgresql.Driver" "PostgreSQL"]])
 
 
 (def psql-plugin
-  (reify DatabaseDriverPlugin
-    (classes
-      [_]
-      [["org.postgresql.Driver" "PostgreSQL"]])))
+  {:classes classes
+   :jdbc-url-template "jdbc:postgresql://<host>:<port>/<database>?user=<user>&password=<password>"})

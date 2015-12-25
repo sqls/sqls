@@ -2,25 +2,18 @@
 (ns sqls.jdbc
   "Encapsulate JDBC stuff, expose trivial API.
   All JDBC interaction should be routed via this ns."
-
-  (:use [clojure.string :only [blank?]])
-
+  (:require [clojure.string :refer [blank?]])
   (:require clojure.java.jdbc)
+  (:require fipp.edn)
   (:require [sqls.util :as util])
-
-  (:import java.net.URL (java.sql PreparedStatement))
-  (:import java.net.URLClassLoader)
-  (:import java.security.PrivilegedActionException)
-  (:import java.sql.Driver)
-  (:import java.sql.DriverManager)
-  (:import java.sql.SQLException)
-
-  (:import clojure.lang.IPersistentMap)
-  (:import sqls.driver.DriverShim))
-
+  (:import [java.net URL URLClassLoader]
+           [java.security PrivilegedActionException]
+           [java.sql Driver DriverManager PreparedStatement SQLException]
+           [sqls.driver DriverShim]))
 
 (defn connect-without-jar!
-  "Connect using builtin classpath."
+  "Connect using builtin classpath.
+  TODO: return either conn or error desc."
   [conn-data]
   (let [conn-class (:class conn-data)
         conn-str (:conn conn-data)]
@@ -30,24 +23,30 @@
         (catch ClassNotFoundException _ nil)))
     (try
       (clojure.java.jdbc/get-connection {:connection-uri conn-str})
-      (catch java.sql.SQLException _ nil)
-      (catch java.security.PrivilegedActionException _ nil))))
-
+      (catch SQLException _ nil)
+      (catch PrivilegedActionException _ nil))))
 
 (defn connect-with-urls!
   "Try to connect using URLClassLoader initialized with given url.
 
   Parameters:
 
-  - conn-data - defines connection metadata,
-  - urls - nonempty coll of urls."
-  [^clojure.lang.IPersistentMap conn-data urls]
-  (assert (not= urls nil))
-  (assert (> (count urls) 0))
+  - conn-data - defines connection (class, jdbc url),
+  - urls - nonempty coll of urls.
+
+  Returns JDBC connection.
+
+  TOOD: return either JDBC connection or error info."
+  [conn-data urls]
+  {:pre [(string? (:class conn-data))
+         (string? (:conn conn-data))
+         (not (nil? urls))
+         (every? (partial instance? URL) urls)
+         (pos? (count urls))]}
+  ; (println (format "connect-with-urls: urls:\n%s" (with-out-str (fipp.edn/pprint urls))))
   (let [conn-class (:class conn-data)
         conn-str (:conn conn-data)
         url-class-loader (java.net.URLClassLoader. (into-array urls))
-        _ (println "loader" url-class-loader)
         cls (.loadClass url-class-loader conn-class)]
     (let [orig-driver (cast java.sql.Driver (.newInstance cls)) ; ugly way to create instance
           shim-driver (sqls.driver.DriverShim. orig-driver)]

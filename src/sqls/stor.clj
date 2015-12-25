@@ -115,7 +115,6 @@
    worksheet-data]
   (assert (not= conn-name nil))
   (assert (map? worksheet-data))
-  (println (format "saving worksheet data for \"%s\": %s" conn-name worksheet-data))
   (let [worksheet-data-path (util/path-join [conf-dir "worksheetdata.json"])
         current-data (try
                        (-> (slurp worksheet-data-path)
@@ -123,6 +122,5 @@
                        (catch IOException _ {}))
         new-data (assoc current-data (keyword conn-name) worksheet-data)
         new-data-str (json/write-str new-data)]
-    (println (format "new worksheet data: %s" new-data-str))
     (spit worksheet-data-path new-data-str)))
 

@@ -1,25 +1,30 @@
 (ns sqls.ui.seesaw.conn-edit
   "UI code for add or edit connection"
-  (:use [seesaw.core :only [
-                            alert
-                            button
-                            combobox
-                            custom-dialog
-                            dispose!
-                            grid-panel
-                            horizontal-panel
-                            label
-                            pack!
-                            select
-                            text
-                            text!
-                            to-root
-                            value
-                            vertical-panel
-                            ]])
-  (:require seesaw.mig
-            [sqls.model :refer [->conn]]
-            [sqls.util :refer [infof spy]]))
+  (:require
+    [clojure.string :refer [blank?]]
+    [seesaw.core :refer [
+                         alert
+                         button
+                         combobox
+                         custom-dialog
+                         dispose!
+                         grid-panel
+                         horizontal-panel
+                         label
+                         listen
+                         pack!
+                         select
+                         selection
+                         text
+                         text!
+                         to-root
+                         value
+                         vertical-panel
+                         ]]
+    [seesaw.font :refer [font]]
+    seesaw.mig
+    [sqls.model :refer [->conn]]
+    [sqls.util :refer [infof spy]]))
 
 (defn on-btn-save-connection-cancel
   "Just close the dialog"
@@ -81,6 +86,38 @@
       (show-test-success! (to-root e))
       (show-test-failure! (to-root e) (:desc result)))))
 
+(defn get-jdbc-url-template
+  [plugins class-name]
+  {:pre [(sequential? plugins)
+         (string? class-name)]}
+  (let [cls-plugin-seq (apply concat (map (fn [plugin]
+                                            (if-let [plugin-classes (if-let [clfn (:classes plugin)]
+                                                                      (clfn))]
+                                              ;; plugin classes are all classes of plugin, each class is really pair
+                                              ;; so we turn it into seq of [class-name plugin]
+                                              (map (fn [plugin-class-pair]
+                                                     [(first plugin-class-pair)
+                                                      plugin])
+                                                   plugin-classes)
+                                              []))
+                                          plugins))
+        cls-plugin-map (into {} cls-plugin-seq)]
+    (assert (map? cls-plugin-map))
+    (assert (every? string? (keys cls-plugin-map)))
+    (assert (every? map? (vals cls-plugin-map)))
+    (when-let [class-plugin (cls-plugin-map class-name)]
+      (:jdbc-url-template class-plugin))))
+
+(defn on-combo-action!
+  [plugins e]
+  {:pre [(not (nil? e))]}
+  (when-let [r (to-root e)]
+    (let [jdbc-conn-str-tmpl-label (select r [:#jdbc-conn-str-tmpl])
+          combo (select r [:#class])
+          sel (selection combo)]
+      (when sel
+        (when-let [tmpl (get-jdbc-url-template plugins sel)]
+          (text! jdbc-conn-str-tmpl-label tmpl))))))
 
 (defn create-edit-connection-frame!
   "Create add-or-edit connection dialog.
@@ -93,14 +130,13 @@
   - save! - save handler to be called when user commits edit,
   - test-conn! - function that tests conn.
   "
-  [conn-list-frame conn-data drivers save! test-conn!]
-  {:pre [(let [_ (infof "drivers: %s" (into [] drivers))]
-           (or
-             (nil? (spy "drivers" drivers))
+  [conn-list-frame conn-data drivers plugins save! test-conn!]
+  {:pre [(or (nil? drivers)
              (and
                (coll? drivers)
                (not (empty? drivers))
-               (every? sequential? drivers))))]}
+               (every? sequential? drivers)))
+         (sequential? plugins)]}
   (let [conn-name (:name conn-data)
         conn-jar (:jar conn-data)
         conn-class (:class conn-data)
@@ -109,11 +145,11 @@
         label-texts ["Name"
                      "Driver JAR file (optional)"
                      "Driver Class"
+                     ""
                      "JDBC Connection String"
                      "Description (optional)"]
         labels (map #(label :text % :border 2 :preferred-size [100 :by 0]) label-texts)
-        default-field-options {:preferred-size [0 :by 400]}
-        fields [(text :id :name :text conn-name :preferred-size [400 :by 0])
+        fields [(text :id :name :text conn-name :preferred-size [600 :by 0])
                 (text :id :jar :text conn-jar)
                 (if drivers
                   (let [model (map first drivers)                          ; for now only classes
@@ -121,8 +157,10 @@
                                             :editable? true
                                             :model model)]
                     (seesaw.core/selection! _combobox (or conn-class ""))
+                    (listen _combobox :action (partial on-combo-action! plugins))
                     _combobox)
                   (text :id :class :text conn-class))
+                (label :id :jdbc-conn-str-tmpl :text "" :font (font :size 10))
                 (text :id :jdbc-conn-str :text conn-str)
                 (text :id :desc :text conn-desc)]
         buttons [(button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])

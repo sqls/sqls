@@ -92,23 +92,25 @@
 
 (defn on-btn-add-click!
   "Handle add connection button in conn list frame."
-  [drivers save! test-conn! e]
+  [drivers plugins save! test-conn! e]
   (let [add-connection-frame (sqls.ui.seesaw.conn-edit/create-edit-connection-frame!
                                (seesaw.core/to-root e)
                                nil
                                drivers
+                               plugins
                                save!
                                test-conn!)]
     (seesaw.core/show! add-connection-frame)))
 
 (defn on-btn-edit-click!
   "Edit button was clicked."
-  [conn-list-frame drivers save! test-conn! _e]
+  [conn-list-frame drivers plugins save! test-conn! _e]
   (let [conn-data (get-selected-conn-data conn-list-frame)
         edit-connection-frame (sqls.ui.seesaw.conn-edit/create-edit-connection-frame!
                                 conn-list-frame
                                 conn-data
                                 drivers
+                                plugins
                                 save!
                                 test-conn!)]
     (seesaw.core/show! edit-connection-frame)))
@@ -179,9 +181,11 @@
   [ui
    about-text
    drivers
+   plugins
    handlers
    connections]
   {:pre [(not (nil? ui))
+         (sequential? plugins)
          (map? handlers)
          (:create-worksheet handlers)
          (:conn-list-closed handlers)]
@@ -223,8 +227,8 @@
                              (enable-conn! [_ conn-name] (enable-conn! enabled-connections-atom conn-name))
                              (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name))
                              (set-conns! [_ conns] (set-conns! conn-list-table conns)))]
-      (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers (:save-conn handlers) (:test-conn handlers)))
-      (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers (:save-conn handlers) (:test-conn handlers)))
+      (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers plugins (:save-conn handlers) (:test-conn handlers)))
+      (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers plugins (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-connect :action (partial on-btn-connect-click! frame conn-list-window (:create-worksheet handlers)))
       (set-conn-list-frame-bindings! frame enabled-connections-atom)
       conn-list-window)))

@@ -29,6 +29,6 @@
   (invoke-later! [ui f])
   (show-error! [ui msg])
   (show-about! [ui text])
-  (create-conn-list-window! [ui handlers drivers connections])
+  (create-conn-list-window! [ui handlers drivers plugins connections])
   (create-worksheet-window! [ui conn-name worksheet-data]))
 

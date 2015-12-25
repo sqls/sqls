@@ -34,7 +34,7 @@
   t)
 
 (defn on-key-press!
-  "Key press handler for sql text area. Calls first parameter (handler), meant to be curried."
+  "Key press handler for sql text area. Calls handler if key matches."
   [handler keystroke e]
   (let [event-key-stroke (KeyStroke/getKeyStrokeForEvent e)]
     (if (= keystroke event-key-stroke)
@@ -104,10 +104,8 @@
   (let [splitter (seesaw.core/select f [:#splitter])
         divider-location (seesaw.core/config splitter :divider-location)
         splitter-height (seesaw.core/height splitter)
-        divider-size (seesaw.core/config splitter :divider-size)
-        split-ratio (/ divider-location (- splitter-height divider-size))]
-    (println (format "divider-location: %s, spitter-height: %s, split-ratio: %s" divider-location splitter-height split-ratio))
-    split-ratio))
+        divider-size (seesaw.core/config splitter :divider-size)]
+    (/ divider-location (- splitter-height divider-size))))
 
 (defn get-line-no
   "Get line number from text and index."
@@ -175,8 +173,8 @@
 (defn set-on-scroll-handler!
   "Add handler to fetch more results on scroll."
   [^JFrame frame handler]
-  {:pre [frame]}
-  (println "on-scroll…")
+  {:pre [frame
+         handler]}
   (let [^JScrollPane scrollable (seesaw.core/select frame [:#results-table-scrollable])
         ^JViewport viewport (.getViewport scrollable)]
     (seesaw.core/listen viewport :change handler)))
@@ -209,9 +207,8 @@
    new-rows]
   {:pre [frame
          (sequential? new-rows)]}
-  (println (format "appending %d rows to table" (count new-rows)))
-  (let [results-table (seesaw.core/select frame [:#results-table])
-        _ (assert (not= results-table nil))]
+  (let [results-table (seesaw.core/select frame [:#results-table])]
+    (assert (not (nil? results-table)))
     (doall (map (partial append-row! results-table) new-rows))))
 
 (defn fetch-more-results!
@@ -223,15 +220,12 @@
          (= 2 (count @results-atom))]}
   (let [[strict-rows lazy-rows] @results-atom
         strict-rows-count (count strict-rows)
-        _ (println (format "strict-rows-count: %d" strict-rows-count))
         new-count (+ strict-rows-count 256)
         new-strict-rows (take new-count lazy-rows)
-        _ (println (format "new-strict-rows count: %d" (count new-strict-rows)))
         _ (assert (>= (count new-strict-rows) (count strict-rows)))
         new-rows [new-strict-rows lazy-rows]]
     (reset! results-atom new-rows)
     (let [new-new-rows (nthrest new-strict-rows (count strict-rows))]
-      (println (format "new-new-rows count: %d" (count new-new-rows)))
       (append-rows! frame new-new-rows))))
 
 (defn on-results-table-scrolled!
@@ -299,6 +293,14 @@
   (seesaw.invoke/invoke-now
     (-> (seesaw.core/select frame [:#tabs])
         (seesaw.core/selection! idx))))
+
+(defn on-ctrl-shift-p!
+  [frame]
+  (let [t (seesaw.core/text)
+        gp (.getGlassPane frame)]
+    (.add gp t)
+    (.setVisible gp true)))
+
 
 (defn create-worksheet-window!
   "Create implementation of sqls.ui.proto.WorksheetWindow interface.
@@ -394,6 +396,16 @@
         (seesaw.core/listen
           btn-print-ui-tree :action
           (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
+    (seesaw.core/listen worksheet-frame
+                        :key-pressed
+                        (partial on-key-press!
+                                 (partial on-ctrl-shift-p! worksheet-frame)
+                                 (seesaw.keystroke/keystroke "control shift P")))
+    (seesaw.core/listen query-text-area
+                        :key-pressed
+                        (partial on-key-press!
+                                 (partial on-ctrl-shift-p! worksheet-frame)
+                                 (seesaw.keystroke/keystroke "control shift P")))
     (reify WorksheetWindow
       (show-worksheet-window! [_] (seesaw.core/show! worksheet-frame))
       (set-worksheet-handlers! [_ handlers] (set-worksheet-handlers! worksheet-frame handlers))
@@ -404,8 +416,7 @@
       (log! [_ t] (log! worksheet-frame t))
       (status-text! [_ t] (status-text! worksheet-frame t))
       (show-results! [_ c r] (show-results! worksheet-frame c r))
-      (select-tab! [_ i] (select-tab! worksheet-frame i))
-      )))
+      (select-tab! [_ i] (select-tab! worksheet-frame i)))))
 
 (defn dispose-worksheet-frame!
   "Dispose worksheet frame."

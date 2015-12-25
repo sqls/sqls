@@ -47,10 +47,11 @@
         [_ text]
         (show-about-dialog! text))
       (create-conn-list-window!
-        [ui drivers handlers connections]
+        [ui drivers plugins handlers connections]
+        (assert (sequential? plugins))
         (assert (coll? handlers))
         (assert (not (nil? (:create-worksheet handlers))))
-        (conn-list/create-conn-list-window! ui about-text drivers handlers connections))
+        (conn-list/create-conn-list-window! ui about-text drivers plugins handlers connections))
       (create-worksheet-window!
         [ui conn-name worksheet-data]
         (sqls.ui.seesaw.worksheet/create-worksheet-window! ui conn-name worksheet-data)))))

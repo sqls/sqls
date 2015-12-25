@@ -1,10 +1,11 @@
 (ns sqls.plugin.sqlite
-  "Adds support for SQlite databases."
-  (:require [sqls.plugin :refer [DatabaseDriverPlugin]]))
+  "Adds support for SQlite databases.")
 
+(defn classes
+  []
+  [["org.sqlite.JDBC" "SQLite"]])
 
 (def sqlite-plugin
-  (reify DatabaseDriverPlugin
-    (classes
-      [_]
-      [["org.sqlite.JDBC" "SQLite"]])))
+  {:classes classes
+   :jdbc-url-template "jdbc:sqlite:<filename>"})
+
