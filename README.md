@@ -14,7 +14,7 @@ It's goal is to make running SQL queries easier.
 2. Download sqls.jar (Windows, Linux) or SQLs.app (OS X) from https://github.com/mpietrzak/sqls/releases,
 3. Put it where you like.
 
-## Usage
+## Running
 
 ### Windows and Linux
 
@@ -25,6 +25,17 @@ You can also run it by hand by executing `java -jar sqls.jar`.
 ### OS X
 
 Double click SQLs app.
+
+## Usage
+
+Put driver jars into ~/.sqls/lib firectory to connect to other DB types. Only PostgreSQL and SQLite drivers are bundled.
+To connect to Oracle: put ojdbc7.jar, xdb6.jar and xmlparserv2.jar (last two only needed for XML support).
+
+Add connection, open worksheet, write SQL statements, separate them by empty lines.
+
+Press Ctrl-Enter to run statement under cursor.
+
+Press Ctrl-P (Windows, Linux) or Cmd-P (OS X) to show command palette.
 
 ## License
 
