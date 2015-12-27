@@ -1,6 +1,5 @@
 (ns sqls.ui.seesaw.worksheet
   (:use [clojure.string :only (join split-lines trim)])
-  (:require [clojure.tools.logging :refer [spy spyf]])
   (:require seesaw.chooser
             seesaw.core
             seesaw.keystroke
@@ -8,14 +7,14 @@
             seesaw.table)
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.ui.proto :refer [UI WorksheetWindow]]
-            [sqls.util :refer [str-or-nil?]])
+            [sqls.ui.seesaw.commander :refer [show-commander!]]
+            [sqls.util :refer [infof str-or-nil?]])
   (:import [java.awt Dimension Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
-           [javax.swing InputMap JComponent JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke]
+           [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
            [javax.swing.table TableColumn]
-           [javax.swing.text DefaultEditorKit]
-           [org.fife.ui.rsyntaxtextarea RSyntaxTextAreaDefaultInputMap]))
+           [javax.swing.text DefaultEditorKit]))
 
 
 (defn fix-textarea-bindings!
@@ -50,6 +49,39 @@
     (assert (not (nil? sql-text-area)))
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler ctrl-enter-keystroke))))
 
+(defn set-menu-p-handler!
+  "Frame is worksheet frame (JFrame).
+  cmds-fn is commander function, which finds command to execute.
+  We handle commander display on UI side.
+  Controller side provides cmds-fn, and UI uses that function to find commander action that matches search box."
+  [frame cmds-fn]
+  {:pre [frame
+         cmds-fn
+         (ifn? cmds-fn)]}
+  (let [menu-p-keystroke (seesaw.keystroke/keystroke "menu P")
+        ^JComponent sql-text-area (seesaw.core/select frame [:#sql])
+        _ (assert sql-text-area)
+        ;; cmds-fn is fn that returns seq of matchind cmd. but we'd like to move focus to sql text area.
+        ;; and we can't ask source for cmds-fn that do this focus, because whole concept of focus is UI -- our client
+        ;; shouldn't have to worry about UI focus.
+        ;; so let's wrap cmds-fn with our hijacking fn that also adds requestFocus on sql-text-area…
+        focus-cmds-fn (fn [text]
+                        (let [cmds (cmds-fn text)]
+                          (when cmds
+                            ;; orig cmd-fn returned cmds… but we want to return modified cmds…
+                            (map (fn [cmd]
+                                   (let [orig-fn (:fn cmd)
+                                         focus-fn (fn []
+                                                    (let [r (orig-fn)]
+                                                      (.requestFocus sql-text-area)
+                                                      r))]
+                                     (assoc cmd :fn focus-fn)))
+                                 cmds))))
+        ;; this is menu-p handler, invoked by "on-key-press! <fn> menu-p-keystroke"
+        menu-p-handler! (fn []
+                           (show-commander! frame focus-cmds-fn))]
+   (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! menu-p-handler! menu-p-keystroke))))
+
 (defn set-on-commit-handler!
   [frame handler]
   (let [btn-commit (seesaw.core/select frame [:#commit])]
@@ -64,10 +96,12 @@
   [^JFrame frame
    handlers]
   {:pre [(:ctrl-enter handlers)
+         (:worksheet-commands handlers)
          (:commit handlers)
          (:rollback handlers)
          (:closed handlers)]}
   (set-ctrl-enter-handler! frame (:ctrl-enter handlers))
+  (set-menu-p-handler! frame (:worksheet-commands handlers))
   (set-on-rollback-handler! frame (:rollback handlers))
   (set-on-commit-handler! frame (:commit handlers))
   (seesaw.core/listen frame :window-closed (fn [_] ((:closed handlers)))))
@@ -258,9 +292,9 @@
          (= 2 (count rows))]}
   (let [[strict-rows lazy-rows] rows
         ^JTable results-table (seesaw.core/table :id :results-table
-                                                             :auto-resize :off
-                                                             :model [:columns columns
-                                                                     :rows strict-rows])
+                                                 :auto-resize :off
+                                                 :model [:columns columns
+                                                         :rows strict-rows])
         results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
         ^JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
@@ -294,21 +328,15 @@
     (-> (seesaw.core/select frame [:#tabs])
         (seesaw.core/selection! idx))))
 
-(defn on-ctrl-shift-p!
-  [frame]
-  (let [t (seesaw.core/text)
-        gp (.getGlassPane frame)]
-    (.add gp t)
-    (.setVisible gp true)))
-
-
 (defn create-worksheet-window!
   "Create implementation of sqls.ui.proto.WorksheetWindow interface.
 
   Parameters:
 
+  - ui,
+  - conn-name,
+  - cmds - commander fn,
   - worksheet-data - a dictionary that contains worksheet data saved between runs:
-
     - :contents - worksheet text area contents,
     - :split-ratio - divider location for main text area and results split pane (relative, from 0.0 to 1.0).
 
@@ -396,18 +424,12 @@
         (seesaw.core/listen
           btn-print-ui-tree :action
           (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
-    (seesaw.core/listen worksheet-frame
-                        :key-pressed
-                        (partial on-key-press!
-                                 (partial on-ctrl-shift-p! worksheet-frame)
-                                 (seesaw.keystroke/keystroke "control shift P")))
-    (seesaw.core/listen query-text-area
-                        :key-pressed
-                        (partial on-key-press!
-                                 (partial on-ctrl-shift-p! worksheet-frame)
-                                 (seesaw.keystroke/keystroke "control shift P")))
     (reify WorksheetWindow
-      (show-worksheet-window! [_] (seesaw.core/show! worksheet-frame))
+      (show-worksheet-window! [_] (do
+                                    (seesaw.core/show! worksheet-frame)
+                                    (let [^JComponent sql (seesaw.core/select worksheet-frame [:#sql])]
+                                      (assert sql)
+                                      (.requestFocus sql))))
       (set-worksheet-handlers! [_ handlers] (set-worksheet-handlers! worksheet-frame handlers))
       (get-contents! [_] (get-contents! worksheet-frame))
       (get-dimensions! [_] (get-dimensions! worksheet-frame))
@@ -462,11 +484,6 @@
   (let [btn-open (seesaw.core/select frame [:#open])]
     (assert (not= btn-open nil))
     (seesaw.core/listen btn-open :action (fn [_] (handler)))))
-
-(defn show!
-  "Show worksheet frame."
-  [frame]
-  (seesaw.core/show! frame))
 
 (defn get-worksheet-frame-dimensions
   "Get worksheet frame position and size."

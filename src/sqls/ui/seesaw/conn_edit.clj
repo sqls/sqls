@@ -160,7 +160,10 @@
                     (listen _combobox :action (partial on-combo-action! plugins))
                     _combobox)
                   (text :id :class :text conn-class))
-                (label :id :jdbc-conn-str-tmpl :text "" :font (font :size 10))
+                (label :id :jdbc-conn-str-tmpl
+                       :font (font :size 10)
+                       :text (or (when conn-class (get-jdbc-url-template plugins conn-class))
+                                 " "))
                 (text :id :jdbc-conn-str :text conn-str)
                 (text :id :desc :text conn-desc)]
         buttons [(button :id :cancel :text "Cancel" :listen [:action on-btn-save-connection-cancel])

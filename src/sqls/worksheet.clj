@@ -1,14 +1,13 @@
 (ns sqls.worksheet
   (:require
     [io.aviso.exception :refer [format-exception]]
-    [clojure.string :refer [trim]]
+    [clojure.string :refer [blank? lower-case trim]]
     [sqls.model :refer [conn?]]
     sqls.ui.proto
     [sqls.util :as util]
     [sqls.util :refer [atom? not-nil?]]
     sqls.jdbc)
-  (:import [clojure.lang Agent Atom Keyword]
-           [javax.swing JFrame]
+  (:import [clojure.lang Agent Atom]
            [java.sql Connection SQLException]
            [sqls.ui.proto UI WorksheetWindow]))
 
@@ -42,6 +41,35 @@
     (assert (instance? String conn-name))
     (reset! worksheet {})
     (remove-worksheet-from-sqls conn-name)))
+
+(defn commit!
+  [worksheet]
+  (assert (not= worksheet nil))
+  (let [^Connection conn (@worksheet :conn)]
+    (assert (not= conn nil))
+    (.commit conn)))
+
+(defn rollback!
+  [worksheet]
+  (assert (not= @worksheet nil))
+  (let [^Connection conn (@worksheet :conn)]
+    (assert (not= conn nil))
+    (.rollback conn)))
+
+(defn worksheet-cmds!
+  "Get worksheet commands.
+  Can have side effects."
+  [worksheet text]
+  (let [match (fn [cmd ^String text]
+                (let [^String cmd-text (:text cmd)]
+                  (assert cmd-text)
+                  (or (blank? text) ; empty text matches all
+                      (.contains (lower-case cmd-text) (lower-case text)))))
+        all-commands [{:text "Commit"
+                       :fn (partial commit! worksheet)}
+                      {:text "Rollback"
+                       :fn (partial rollback! worksheet)}]]
+    (filter (fn [cmd] (match cmd text)) all-commands)))
 
 (defn create-worksheet!
   "Create worksheet atom, including worksheet frame.
@@ -201,21 +229,6 @@
               (println "worksheet is not idle")))
           worksheet)))
 
-(defn commit!
-  [worksheet]
-  (assert (not= worksheet nil))
-  (let [^Connection conn (@worksheet :conn)]
-    (assert (not= conn nil))
-    (.commit conn)))
-
-(defn rollback!
-  [worksheet]
-  (assert (not= @worksheet nil))
-  (let [^Connection conn (@worksheet :conn)]
-    (assert (not= conn nil))
-    (.rollback conn)))
-
-
 (defn save!
   [worksheet]
   (let [frame (@worksheet :frame)
@@ -257,6 +270,8 @@
     (assert (not (nil? (:window @worksheet))))
     (let [window (:window @worksheet)
           handlers {:ctrl-enter (partial on-ctrl-enter! worksheet)
+                    ;; TODO: rename :worksheet-commands :/
+                    :worksheet-commands (partial worksheet-cmds! worksheet)
                     :commit (partial commit! worksheet)
                     :rollback (partial rollback! worksheet)
                     :execute (partial on-ctrl-enter! worksheet)

@@ -9,6 +9,7 @@
             fipp.edn
             sqls.worksheet
             [sqls.conf :as conf]
+            [sqls.plugin.oracle :refer [oracle-plugin]]
             [sqls.plugin.psql :refer [psql-plugin]]
             [sqls.plugin.sqlite :refer [sqlite-plugin]]
             [sqls.ui.seesaw :refer [create-ui!]]
@@ -32,7 +33,8 @@
    ["-h" "--help"]])
 
 (def builtin-plugins
-  [psql-plugin
+  [oracle-plugin
+   psql-plugin
    sqlite-plugin])
 
 (defn usage
@@ -203,7 +205,7 @@
    ^String cli-conf-dir]
    (io.aviso.repl/install-pretty-exceptions)
    (let [about-text (io/resource "about.txt")
-         ^UI ui (create-ui! about-text {})]
+         ^UI ui (create-ui! about-text)]
      (let [cwd (System/getProperty "user.dir")
            conf-dir (if cli-conf-dir cli-conf-dir (conf/find-conf-dir cwd))
            _ (assert conf-dir)
