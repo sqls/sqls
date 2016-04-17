@@ -6,7 +6,7 @@
   (:require [sqls.model :as model]
             [sqls.util :as util]
             [sqls.util :refer [assert-not-nil debugf]])
-  (:import [java.io IOException]
+  (:import [java.io File IOException]
            [sqls.model Conn]))
 
 (defn load-settings!

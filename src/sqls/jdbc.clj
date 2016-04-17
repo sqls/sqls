@@ -47,11 +47,16 @@
   (let [conn-class (:class conn-data)
         conn-str (:conn conn-data)
         url-class-loader (java.net.URLClassLoader. (into-array urls))
-        cls (.loadClass url-class-loader conn-class)]
-    (let [orig-driver (cast java.sql.Driver (.newInstance cls)) ; ugly way to create instance
-          shim-driver (sqls.driver.DriverShim. orig-driver)]
-      (java.sql.DriverManager/registerDriver shim-driver)
-      (clojure.java.jdbc/get-connection {:connection-uri conn-str}))))
+        cls (try
+              (.loadClass url-class-loader conn-class)
+              (catch java.lang.ClassNotFoundException e
+                (println (format "can't load with urls: %s" e))
+                nil))]
+    (when cls
+      (let [orig-driver (cast java.sql.Driver (.newInstance cls)) ; ugly way to create instance
+            shim-driver (sqls.driver.DriverShim. orig-driver)]
+        (java.sql.DriverManager/registerDriver shim-driver)
+        (clojure.java.jdbc/get-connection {:connection-uri conn-str})))))
 
 
 (defn connect-with-absolute-path!
@@ -118,8 +123,6 @@
 
   Two ways: we either have jar (which is a path, either absolute path starting with slash, or
   relative path) or we have no specific jar given.
-
-  If jar is given, then we should first locate this jar and then use this jar to get connection.
 
   If jar is not given, then we:
 

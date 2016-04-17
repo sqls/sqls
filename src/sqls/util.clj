@@ -4,41 +4,33 @@
            java.lang.System [clojure.lang Atom])
   (:require [clojure.string :as string]))
 
-
 (defn any?
   [c]
   (some identity c))
-
 
 (defn all?
   [c]
   (every? identity c))
 
-
 (defn not-nil?
   [x]
   (not (nil? x)))
-
 
 (defn assert-not-nil
   [x]
   (assert (not-nil? x)))
 
-
 (defn str?
   [x]
   (instance? String x))
-
 
 (defn str-or-nil?
   [x]
   (or (nil? x) (str? x)))
 
-
 (defn atom?
   [a]
   (and (not-nil? a) (instance? Atom a)))
-
 
 (defn path-to-absolute-path
   "Return absolute path."
@@ -46,13 +38,11 @@
   (let [f (File. p)]
     (.getAbsolutePath f)))
 
-
 (defn startswith
   "String .startsWith so we don't call Java directly."
   [^String s
    ^String p]
   (.startsWith s p))
-
 
 (defn endswith
   "Strnig .endsWith so we don't call Java directly."
@@ -60,20 +50,18 @@
    ^String e]
   (.endsWith s e))
 
-
 (defn path-join
   "Join arguments as path.
   Takes seq of path elements."
   [parts]
-  {:pre [every? #(instance? File %) parts]}
+  {:pre [(every? string? parts)]}
   (let [sep File/separator]
-    (string/join sep (map str parts))))
-
+    (string/join sep parts)))
 
 (defn get-absolute-path
-  [^File f]
-  (.getAbsolutePath f))
-
+  [f]
+  {:pre [(string? f)]}
+  (.getAbsolutePath (File. f)))
 
 (defn list-dir
   "Return contents of directory as seq of strings.
@@ -81,12 +69,12 @@
   Returns seq absolute paths as strings.
   "
   [d]
-  (let [^File df (if (instance? File d) d (File. (str d)))
+  {:pre [(string? d)]}
+  (let [df (File. d)
         filenames (seq (.list df))
         join-df-and-filename (fn [^String f] (path-join [(.getAbsolutePath df) f]))
         absolute-filenames (map join-df-and-filename filenames)]
     absolute-filenames))
-
 
 (defn find-driver-jars
   "Return a list of absolute paths to driver jar files."
@@ -118,13 +106,11 @@
        (.exists ff)
        (.isFile ff))))
 
-
 (defn is-writable?
   "Check if path is writable."
   [^String f]
   (let [df (File. f)]
     (.canWrite df)))
-
 
 (defn parent-dir
   "Get parent directory"
@@ -132,26 +118,21 @@
   (let [df (File. d)]
     (.getParent df)))
 
-
 (defn debugf
   [fmt & args]
   (println (apply format fmt args)))
-
 
 (defn info
   [& args]
   (apply println args))
 
-
 (defn infof
   [fmt & args]
   (println (apply format fmt args)))
 
-
 (defn warnf
   [fmt & args]
   (println (apply format fmt args)))
-
 
 (defn spy
   ([value]
@@ -160,4 +141,3 @@
   ([msg value]
    (println (format "%s: %s" msg value))
    value))
-

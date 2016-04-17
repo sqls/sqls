@@ -4,13 +4,6 @@
   (:import [java.io File])
   (:require [sqls.util :as util]))
 
-
-(defn spy
-  [msg v]
-  (println (str msg ": " v))
-  v)
-
-
 (defn is-good-existing-conf-dir?
   "Check if dir looks like a correct existing conf-dir.
   Good is when:
@@ -21,10 +14,9 @@
   [^String d]
   (println (format "checking if %s is good conf dir" d))
   (and
-    (spy "dir-exists?" (util/dir-exists? d))
-    (spy "is-writable?" (util/is-writable? d))
-    (spy "has settings.json?" (util/file-exists? (util/path-join [d "settings.json"])))))
-
+    (util/dir-exists? d)
+    (util/is-writable? d)
+    (util/file-exists? (util/path-join [d "settings.json"]))))
 
 (defn is-good-potential-conf-dir?
   "Check if dir could be good conf dir even if it does not exist."
@@ -34,11 +26,10 @@
          (util/dir-exists? parent)
          (util/is-writable? parent)) parent))
 
-
 (defn find-conf-dir
   "Find conf dir:
 
-  - first look at given cwd,
+  - first look at given cwd (presumably working directory),
   - then look at $HOME/.config/sqls,
   - then look at $HOME/.sqls,
   - then look in OS specific user's configuration dir:
@@ -63,11 +54,12 @@
         win-appdata-sqls (if win-appdata (util/path-join [win-appdata "sqls"]))
         candidates [cwd home-dot-conf-sqls home-dot-sqls]
         good-existing (-> (filter is-good-existing-conf-dir? candidates) first)]
-    (cond
-      good-existing good-existing
-      (is-good-potential-conf-dir? win-appdata-sqls) win-appdata-sqls
-      (is-good-potential-conf-dir? os-x-lib-app-support-sqls) os-x-lib-app-support-sqls)))
-
+    (let [d (cond
+              good-existing good-existing
+              (is-good-potential-conf-dir? win-appdata-sqls) win-appdata-sqls
+              (is-good-potential-conf-dir? os-x-lib-app-support-sqls) os-x-lib-app-support-sqls)]
+      (println (format "found conf dir: %s" d))
+      d)))
 
 (defn ensure-conf-dir!
   "Make sure conf directory exists and is writable."

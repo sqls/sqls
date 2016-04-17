@@ -18,6 +18,7 @@
 
 
 (defn fix-textarea-bindings!
+  "Fix rich-text-area bindings on OS X. Note that it does modify its argument before returning it."
   ^JTextArea
   [^JTextArea t]
   (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))]
@@ -33,7 +34,7 @@
   t)
 
 (defn on-key-press!
-  "Key press handler for sql text area. Calls handler if key matches."
+  "Wrap key press handler for sql text area. Calls supplied handler if key matches."
   [handler keystroke e]
   (let [event-key-stroke (KeyStroke/getKeyStrokeForEvent e)]
     (if (= keystroke event-key-stroke)
@@ -61,7 +62,7 @@
   (let [menu-p-keystroke (seesaw.keystroke/keystroke "menu P")
         ^JComponent sql-text-area (seesaw.core/select frame [:#sql])
         _ (assert sql-text-area)
-        ;; cmds-fn is fn that returns seq of matchind cmd. but we'd like to move focus to sql text area.
+        ;; cmds-fn is fn that returns seq of matching cmd. but we'd like to move focus to sql text area.
         ;; and we can't ask source for cmds-fn that do this focus, because whole concept of focus is UI -- our client
         ;; shouldn't have to worry about UI focus.
         ;; so let's wrap cmds-fn with our hijacking fn that also adds requestFocus on sql-text-area…
@@ -117,21 +118,22 @@
 (defn get-dimensions!
   [^JFrame frame]
   {:pre [frame]
-   :post [(sequential? %)
-          (= 4 (count %))
-          (every? number? %)]}
+   :post [(map? %)]}
   ;Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
   (let [screen-size (let [^Dimension dim (-> frame
-                                             (.getToolkit)
-                                             (.getScreenSize))
+                                             .getToolkit
+                                             .getScreenSize)
                           w (.width dim)
                           h (.height dim)]
                       [w h])
+        size (let [^Dimension dim (.getSize frame)]
+               [(.width dim) (.height dim)])
         position (let [^Point p (.getLocationOnScreen frame)
                        x (.x p)
                        y (.y p)]
                    [x y])]
-    (concat position screen-size)))
+    {:position position
+     :size size}))
 
 (defn get-split-ratio!
   [^JFrame f]

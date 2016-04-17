@@ -139,7 +139,7 @@
   [plugins conns]
   {:pre [(sequential? plugins)
          (map? conns)]
-   :post [sequential?]}
+   :post [(sequential? %)]}
   (let [plugin-drivers (get-plugins-drivers plugins)
         class-names (into {} plugin-drivers) ; e.g. foo.bar.BarDriver -> "Bar"
         plugin-classes (map first plugin-drivers) ; all classes from plugins

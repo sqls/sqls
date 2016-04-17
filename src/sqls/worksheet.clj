@@ -215,7 +215,18 @@
                   frame (:window @worksheet)
                   save-worksheet-data (:save-worksheet-data handlers)
                   contents (sqls.ui.proto/get-contents! frame)
+                  ;; dimensions is info about window position and size
+                  ;; dimensions is map of:
+                  ;; - :position - vector of two numbers,
+                  ;; - :size - vector of two numbers,
+                  ;; - :maximized - boolean.
                   dimensions (sqls.ui.proto/get-dimensions! frame)
+                  _ (print (format "dimensions:\n%s" (with-out-str (fipp.edn/pprint dimensions))))
+                  _ (assert (or (:maximized dimensions)
+                                (and (:size dimensions)
+                                     (:position dimensions)
+                                     (= 2 (-> dimensions :position count))
+                                     (= 2 (-> dimensions :size count)))))
                   split-ratio (sqls.ui.proto/get-split-ratio! frame)]
                   (save-worksheet-data {:contents contents
                                         :dimensions dimensions
