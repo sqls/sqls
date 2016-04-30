@@ -16,7 +16,7 @@
   :java-source-paths ["src"]
   :javac-options ["-target" "1.7" "-source" "1.7"]
   :target-path "target/%s"
-  :plugins [[codox "0.9.4"]]
+  :plugins [[lein-codox "0.9.5"]]
   :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}
              :dev {:global-vars {*warn-on-reflection* true}
