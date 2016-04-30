@@ -151,19 +151,15 @@
    :post [(sequential? %)
           (every? string? %)]}
   (let [column-count (apply max 0 (map (fn [row] (count row)) rows))
-        _ (debugf "column-count: %s" column-count)
         column-widths (for [i (range column-count)]
                         (->> rows
                              (map (fn [row] (get row i)))
                              (map (fn [v] (or v "")))
                              (map count)
                              (apply max)))]
-    (debugf "column-widths: %s" (with-out-str (fipp.edn/pprint column-widths)))
     (map (fn [row]
-           (debugf "formatting row: %s" (with-out-str (fipp.edn/pprint row)))
            (string/join "  "
                         (map (fn [w v]
-                               (debugf "formatting value %s in column width %s" v w)
                                (assert (number? w))
                                (assert (string? v))
                                (let [sv (or v "")
