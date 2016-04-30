@@ -1,4 +1,4 @@
-(defproject sqls "0.1.4"
+(defproject sqls "0.1.5"
   :description "SQLS"
   :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
@@ -19,5 +19,7 @@
   :plugins [[lein-codox "0.9.5"]]
   :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}
-             :dev {:global-vars {*warn-on-reflection* true}
+             :repl {:dependencies [[org.clojure/tools.namespace "0.2.11"]]}
+             :dev {:dependencies [[org.clojure/tools.namespace "0.2.11"]]
+                   :global-vars {*warn-on-reflection* true}
                    :jvm-opts ["-Xms16M" "-Xmx4G" "-XX:+PrintGC" "-XX:+PrintGCDateStamps" "-XX:+UseG1GC" "-XX:MaxGCPauseMillis=1"]}})

@@ -1,12 +1,11 @@
 <project default="bundle">
     <property environment="env"/>
-
+    <property name="sqls.version">0.1.5</property>
     <taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask">
         <classpath>
             <pathelement location="lib/appbundler-1.0ea.jar"/>
         </classpath>
     </taskdef>
-
     <target name="bundle">
         <bundleapp
                 executablename="SQLs"
@@ -14,13 +13,13 @@
                 name="SQLs"
                 displayname="SQLs"
                 identifier="cx.hell.sqls"
-                shortversion="0.1.4"
-                version="0.1.4"
+                shortversion="${sqls.version}"
+                version="${sqls.version}"
                 applicationCategory="public.app-category.developer-tools"
                 mainclassname="sqls.core"
                 jvmrequired="1.8"
                 icon="resources/sqls.icns">
-            <classpath file="target/uberjar/sqls-0.1.4-standalone.jar"/>
+            <classpath file="target/uberjar/sqls-${sqls.version}-standalone.jar"/>
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>
@@ -29,5 +28,4 @@
             <option value="-Xdock:name=SQLs"/>
         </bundleapp>
     </target>
-
 </project>
