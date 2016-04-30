@@ -170,7 +170,10 @@
   "Create login window.
   Parameters:
 
+  - ui - the UI,
+  - about-text - text in 'About' popup,
   - drivers - seq of possible driver class names,
+  - plugins - sequence o plugins,
   - handlers - maps of handlers with following keys:
 
     - create-worksheet - called when user clicks connect button,
@@ -227,6 +230,8 @@
                              (enable-conn! [_ conn-name] (enable-conn! enabled-connections-atom conn-name))
                              (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name))
                              (set-conns! [_ conns] (set-conns! conn-list-table conns)))]
+      ;; We should not pass plugins here… instead UI should be dumb… we should probably have a handler
+      ;; to get JDBC template for given params.
       (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers plugins (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers plugins (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-connect :action (partial on-btn-connect-click! frame conn-list-window (:create-worksheet handlers)))

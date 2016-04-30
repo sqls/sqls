@@ -15,13 +15,18 @@
   (set-worksheet-handlers! [ww handlers])
   (get-contents! [ww])
   (get-sql! [ww])
+  (get-word! [ww])
   (get-dimensions! [ww])
   (get-split-ratio! [ww])
   (choose-save-file! [ww])
   (show-results! [ww columns rows])
   (select-tab! [ww i])
   (log! [ww s])
-  (status-text! [ww s]))
+  (status-text! [ww s])
+  ;; This is to workaround bug on OS X where Frames are never garbage collected.
+  ;; The Frame itself is usually small, but for example Rich Text Area can reference
+  ;; significant amount of memory.
+  (release-resources! [ww]))
 
 
 (defprotocol UI

@@ -9,6 +9,7 @@
             fipp.edn
             sqls.worksheet
             [sqls.conf :as conf]
+            [sqls.plugin]
             [sqls.plugin.oracle :refer [oracle-plugin]]
             [sqls.plugin.psql :refer [psql-plugin]]
             [sqls.plugin.sqlite :refer [sqlite-plugin]]
@@ -58,15 +59,21 @@
 
   SQLs atom is map and it contains following keys:
 
+  - :plugins - plugins,
   - :worksheets - map of worksheets, by conn name,
   - :conn-list - conn-list window or nil,
   - :connections - map of conn name to Conn record,
   - :conf-dir - current value of conf-dir, configuration files go there."
-  [conf-dir connections]
+  [conf-dir connections plugins]
   {:pre [(string? conf-dir)
          (map? connections)
+         (sequential? plugins)
+         (every? map? plugins)
+         ;; Each plugin is a map and has a name.
+         (every? :name plugins)
          (every? string? (keys connections))]}
-  (let [s {:worksheets  {}
+  (let [s {:plugins     plugins
+           :worksheets  {}
            :connections connections
            :conf-dir    conf-dir
            :conn-list   nil}]
@@ -180,8 +187,10 @@
     (assert (not (nil? conf-dir)))
     (if (contains? (:worksheets @sqls-atom) conn-name)
       (warnf "worksheet already present in sqls state")
-      (let [worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
+      (let [plugins (sqls.plugin/get-plugins-by-class (:class conn-data) (:plugins @sqls-atom))
+            worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
             worksheet-handlers {:save-worksheet-data (fn [data] (stor/save-worksheet-data! conf-dir conn-name data))
+                                :describe-object (fn [conn object-name] (sqls.plugin/describe-object! conn object-name plugins))
                                 :worksheet-closed (fn [conn-name]
                                                     (swap! sqls-atom update :worksheets dissoc conn-name)
                                                     (enable-conn! conn-list-win conn-name)
@@ -206,17 +215,20 @@
    (io.aviso.repl/install-pretty-exceptions)
    (let [about-text (io/resource "about.txt")
          ^UI ui (create-ui! about-text)]
-     (let [cwd (System/getProperty "user.dir")
+     (let [plugins builtin-plugins
+           cwd (System/getProperty "user.dir")
            conf-dir (if cli-conf-dir cli-conf-dir (conf/find-conf-dir cwd))
            _ (assert conf-dir)
            connections (->> (stor/load-connections! conf-dir)
                             (map (fn [c] [(:name c) c]))
                             (apply concat)
                             (apply hash-map))
-           sqls-atom (create-sqls-atom! conf-dir connections) ; sqls-atom holds high level mutable state of sqls
+           ;; sqls-atom holds high level mutable state of sqls
+           ;; state is bad, but inevitable, let's try to have it contained…
+           sqls-atom (create-sqls-atom! conf-dir connections plugins)
            _ (conf/ensure-conf-dir! conf-dir)
            settings (stor/load-settings! conf-dir)
-           drivers (get-plugins-conns-drivers builtin-plugins connections)
+           drivers (get-plugins-conns-drivers plugins connections)
            handlers {:create-worksheet (partial create-worksheet! sqls-atom ui exit-on-close?)
                      :save-conn (partial save-conn! sqls-atom)
                      :test-conn test-conn!
@@ -224,6 +236,7 @@
                      :conn-list-closed (partial on-conn-list-closed! exit-on-close? sqls-atom)}
            ^ConnListWindow conn-list-window (create-conn-list-window! ui
                                                                       drivers
+                                                                      ;; TODO: UI should not know about plugins
                                                                       builtin-plugins
                                                                       handlers
                                                                       (->> @sqls-atom

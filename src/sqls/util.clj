@@ -1,7 +1,8 @@
 (ns sqls.util
   "Various utilities."
-  (:import java.io.File
-           java.lang.System [clojure.lang Atom])
+  (:import [java.io File]
+           [java.lang System]
+           [clojure.lang Atom])
   (:require [clojure.string :as string]))
 
 (defn any?
@@ -59,7 +60,7 @@
     (string/join sep parts)))
 
 (defn get-absolute-path
-  [f]
+  [^String f]
   {:pre [(string? f)]}
   (.getAbsolutePath (File. f)))
 
@@ -68,7 +69,7 @@
   Takes string or file as argument.
   Returns seq absolute paths as strings.
   "
-  [d]
+  [^String d]
   {:pre [(string? d)]}
   (let [df (File. d)
         filenames (seq (.list df))
@@ -141,3 +142,35 @@
   ([msg value]
    (println (format "%s: %s" msg value))
    value))
+
+(defn format-tabular
+  [rows]
+  {:pre [(sequential? rows)
+         (every? sequential? rows)
+         (every? (fn [row] (every? string? row)) rows)]
+   :post [(sequential? %)
+          (every? string? %)]}
+  (let [column-count (apply max 0 (map (fn [row] (count row)) rows))
+        _ (debugf "column-count: %s" column-count)
+        column-widths (for [i (range column-count)]
+                        (->> rows
+                             (map (fn [row] (get row i)))
+                             (map (fn [v] (or v "")))
+                             (map count)
+                             (apply max)))]
+    (debugf "column-widths: %s" (with-out-str (fipp.edn/pprint column-widths)))
+    (map (fn [row]
+           (debugf "formatting row: %s" (with-out-str (fipp.edn/pprint row)))
+           (string/join "  "
+                        (map (fn [w v]
+                               (debugf "formatting value %s in column width %s" v w)
+                               (assert (number? w))
+                               (assert (string? v))
+                               (let [sv (or v "")
+                                     vl (count sv)
+                                     sl (- w vl)
+                                     spaces (apply str (repeat sl \space))]
+                                 (str sv spaces)))
+                             column-widths
+                             row)))
+         rows)))

@@ -9,7 +9,7 @@
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
             [sqls.util :refer [infof str-or-nil?]])
-  (:import [java.awt Dimension Point Rectangle Toolkit]
+  (:import [java.awt Container Dimension Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
            [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
@@ -183,6 +183,26 @@
         block-text (join "\n" block-lines)]
     block-text))
 
+(defn get-word!
+  "Extract current word from text from frame."
+  [frame]
+  (let [sql-comp (seesaw.core/select frame [:#sql])
+        all-text (seesaw.core/value sql-comp)
+        caret-position (seesaw.core/config sql-comp :caret-position)
+        word-char? (fn [c]
+                     (and (not= c \space)
+                          (not= c \;)))
+        word (apply str (concat
+                          (->> all-text
+                               (take caret-position)
+                               reverse
+                               (take-while word-char?)
+                               reverse)
+                          (->> all-text
+                               (drop caret-position)
+                               (take-while word-char?))))]
+    word))
+
 (defn log!
   "Add log message to status panel."
   [^JFrame frame
@@ -330,6 +350,17 @@
     (-> (seesaw.core/select frame [:#tabs])
         (seesaw.core/selection! idx))))
 
+(defn release-resources!
+  "Detach all components from frame to allow them to be garbage collected.
+  This is a workaround of JRE's bug."
+  [^JFrame frame]
+  {:pre [(not (nil? frame))]}
+  (println (format "release-resources! on %s" frame))
+  (.setLayout frame nil)
+  (when-let [p (.getContentPane frame)]
+    (.removeAll p))
+  (.removeAll frame))
+
 (defn create-worksheet-window!
   "Create implementation of sqls.ui.proto.WorksheetWindow interface.
 
@@ -437,10 +468,12 @@
       (get-dimensions! [_] (get-dimensions! worksheet-frame))
       (get-split-ratio! [_] (get-split-ratio! worksheet-frame))
       (get-sql! [_] (get-sql! worksheet-frame))
+      (get-word! [_] (get-word! worksheet-frame))
       (log! [_ t] (log! worksheet-frame t))
       (status-text! [_ t] (status-text! worksheet-frame t))
       (show-results! [_ c r] (show-results! worksheet-frame c r))
-      (select-tab! [_ i] (select-tab! worksheet-frame i)))))
+      (select-tab! [_ i] (select-tab! worksheet-frame i))
+      (release-resources! [_] (release-resources! worksheet-frame)))))
 
 (defn dispose-worksheet-frame!
   "Dispose worksheet frame."

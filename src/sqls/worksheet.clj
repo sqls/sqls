@@ -17,30 +17,27 @@
    ^Throwable e]
   (println (format-exception e)))
 
-(defn on-worksheet-window-closed
+(defn on-worksheet-window-closed!
   "Called from Worksheet UI when windows was closed.
   Cleanup of worksheet happens here:
 
   - try to close connection,
-  - remove agent and atom,
-  - call parent (sqls) to remove ourselves from central structures - this
-    happens by calling remove-worksheet-from-sqls with conn-name as only parameter."
-  [worksheet remove-worksheet-from-sqls]
+  - remove agent and atom."
+  [worksheet]
   (assert (atom? worksheet))
-  (assert (not-nil? remove-worksheet-from-sqls))
-  (assert (ifn? remove-worksheet-from-sqls))
   (println "window closed")
   (let [conn-data (:conn-data @worksheet)
-        conn-name (conn-data "name")
+        conn-name (:name conn-data)
         ^Connection conn (:conn @worksheet)
-        agent (:agent @worksheet)]
+        agent (:agent @worksheet)
+        window (:window @worksheet)]
+    (sqls.ui.proto/release-resources! window)
     (send-off agent (fn [_]
                       (.close conn)
                       nil))
     (assert (not-nil? conn-name))
     (assert (instance? String conn-name))
-    (reset! worksheet {})
-    (remove-worksheet-from-sqls conn-name)))
+    (reset! worksheet {})))
 
 (defn commit!
   [worksheet]
@@ -56,19 +53,40 @@
     (assert (not= conn nil))
     (.rollback conn)))
 
+(defn describe!
+  [worksheet]
+  (let [conn (@worksheet :conn)
+        describe-object (-> @worksheet :handlers :describe-object)]
+    (when (and conn describe-object)
+      (let [window (:window @worksheet)
+            _ (assert (not (nil? window)))
+            object-name (sqls.ui.proto/get-word! window)
+            maybe-desc (describe-object conn object-name)]
+        (println (format "description: %s" maybe-desc))
+        (when maybe-desc
+          (sqls.ui.proto/select-tab! window 1)
+          (sqls.ui.proto/log! window (str maybe-desc "\n")))))))
+
 (defn worksheet-cmds!
   "Get worksheet commands.
-  Can have side effects."
+  Can have side effects.
+  Params:
+  - text - text entered in search box, can be nil and can be empty."
   [worksheet text]
-  (let [match (fn [cmd ^String text]
+  (let [;; Check if given cmd matches given search text.
+        ;; TODO: this should be handled by commands: some commands might accept everything for example.
+        match (fn [cmd ^String text]
                 (let [^String cmd-text (:text cmd)]
                   (assert cmd-text)
                   (or (blank? text) ; empty text matches all
                       (.contains (lower-case cmd-text) (lower-case text)))))
+        ;; TODO: Core should be owner of commands, plugins should be able to provide commands.
         all-commands [{:text "Commit"
                        :fn (partial commit! worksheet)}
                       {:text "Rollback"
-                       :fn (partial rollback! worksheet)}]]
+                       :fn (partial rollback! worksheet)}
+                      {:text "Describe"
+                       :fn (partial describe! worksheet)}]]
     (filter (fn [cmd] (match cmd text)) all-commands)))
 
 (defn create-worksheet!
@@ -157,14 +175,12 @@
     (swap! worksheet assoc :result result)
     (sqls.ui.proto/show-results! worksheet-win columns rows)))
 
-
 (defn fix-sql
   "Cleanup sql before running it. Expects trimmed sql."
   [sql]
   (if (util/endswith sql ";")
     (subs sql 0 (- (count sql) 1))
     sql))
-
 
 (defn execute!
   "Start executing query or sql command in worksheet - executed in \"worker\" worksheet agent."
@@ -288,7 +304,13 @@
                     :execute (partial on-ctrl-enter! worksheet)
                     :save (partial save! worksheet)
                     :open (partial open! worksheet)
-                    :closed (partial (:worksheet-closed handlers) (:name conn-data))}]
+                    :closed (fn []
+                              ;; Windows are never re-opened, so if this UI frame was closed, then
+                              ;; we can also drop resources associated with this worksheet structure.
+                              (on-worksheet-window-closed! worksheet)
+                              ;; Now that both window and this worksheet structure is disposed,
+                              ;; we can call parent so it can remove us from its structure.
+                              ((:worksheet-closed handlers) (:name conn-data)))}]
       (sqls.ui.proto/set-worksheet-handlers! window handlers) ; set handlers should happen in "create-worksheet!"
       (sqls.ui.proto/show-worksheet-window! window)
       (connect-worksheet! ui worksheet)

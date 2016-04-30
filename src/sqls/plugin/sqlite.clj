@@ -6,6 +6,7 @@
   [["org.sqlite.JDBC" "SQLite"]])
 
 (def sqlite-plugin
-  {:classes classes
+  {:name "SQLite"
+   :classes classes
    :jdbc-url-template "jdbc:sqlite:<filename>"})
 
