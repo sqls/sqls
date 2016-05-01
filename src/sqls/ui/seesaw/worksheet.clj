@@ -8,7 +8,7 @@
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
-            [sqls.util :refer [infof str-or-nil?]])
+            [sqls.util :refer [str-or-nil?]])
   (:import [java.awt Container Dimension Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
@@ -16,21 +16,28 @@
            [javax.swing.table TableColumn]
            [javax.swing.text DefaultEditorKit]))
 
-
 (defn fix-textarea-bindings!
-  "Fix rich-text-area bindings on OS X. Note that it does modify its argument before returning it."
+  "Fix rich-text-area bindings.
+  Note that it does modify its argument before returning it."
   ^JTextArea
   [^JTextArea t]
-  (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))]
+  (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))
+        ctrl-enter-ks (KeyStroke/getKeyStroke "control pressed ENTER")
+        m (.getInputMap t)]
     (when is-osx
-      (let [m (.getInputMap t)]
         (assert (not (nil? m)))
         (let [default-modifier (-> (Toolkit/getDefaultToolkit) (.getMenuShortcutKeyMask))
               shift InputEvent/SHIFT_MASK]
           (.put m (KeyStroke/getKeyStroke KeyEvent/VK_LEFT (bit-or default-modifier shift)) DefaultEditorKit/selectionBeginLineAction)
           (.put m (KeyStroke/getKeyStroke KeyEvent/VK_RIGHT (bit-or default-modifier shift)) DefaultEditorKit/selectionEndLineAction)
           (.put m (KeyStroke/getKeyStroke KeyEvent/VK_HOME shift) DefaultEditorKit/selectionBeginAction)
-          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_END shift) DefaultEditorKit/selectionEndAction)))))
+          (.put m (KeyStroke/getKeyStroke KeyEvent/VK_END shift) DefaultEditorKit/selectionEndAction)))
+    (loop [m m]
+      (let [keystrokes (set (.keys m))]
+        (if (contains? keystrokes ctrl-enter-ks)
+          (.remove m ctrl-enter-ks)
+          (when-let [p (.getParent m)]
+            (recur p))))))
   t)
 
 (defn on-key-press!
@@ -452,11 +459,11 @@
     (seesaw.core/pack! worksheet-frame)
     (if contents
       (seesaw.core/config! query-text-area :text contents))
-    (let [btn-print-ui-tree (seesaw.core/select worksheet-frame [:#print-ui-tree])]
-      (if btn-print-ui-tree
-        (seesaw.core/listen
-          btn-print-ui-tree :action
-          (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
+    ; (let [btn-print-ui-tree (seesaw.core/select worksheet-frame [:#print-ui-tree])]
+    ;   (if btn-print-ui-tree
+    ;     (seesaw.core/listen
+    ;       btn-print-ui-tree :action
+    ;       (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
     (reify WorksheetWindow
       (show-worksheet-window! [_] (do
                                     (seesaw.core/show! worksheet-frame)
