@@ -8,8 +8,8 @@
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
-            [sqls.util :refer [str-or-nil?]])
-  (:import [java.awt Container Dimension Point Rectangle Toolkit]
+            [sqls.util :refer [debugf str-or-nil?]])
+  (:import [java.awt Component Container Dimension Font Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
            [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
@@ -368,6 +368,32 @@
     (.removeAll p))
   (.removeAll frame))
 
+(defn change-font-size!
+  [^Component component change]
+  (let [^Font f (.getFont component)
+        current-size (.getSize f)
+        new-size (float (+ current-size change))
+        new-font (.deriveFont f new-size)]
+    (debugf "current size: %s, new size: %s" current-size new-size)
+    (when (pos? new-size)
+      (.setFont component new-font))))
+
+(defn setup-font-size-keys!
+  [frame]
+  (let [sql-text-area (seesaw.core/select frame [:#sql])
+        log-text (seesaw.core/select frame [:#log])
+        plus-key-stroke (seesaw.keystroke/keystroke "menu EQUALS")
+        minus-key-stroke (seesaw.keystroke/keystroke "menu MINUS")
+        handler-plus (fn []
+                       (change-font-size! sql-text-area 1)
+                       (change-font-size! log-text 1))
+        handler-minus (fn []
+                        (change-font-size! sql-text-area -1)
+                        (change-font-size! log-text -1))]
+    (assert (not (nil? sql-text-area)))
+    (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler-plus plus-key-stroke))
+    (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler-minus minus-key-stroke))))
+
 (defn create-worksheet-window!
   "Create implementation of sqls.ui.proto.WorksheetWindow interface.
 
@@ -464,6 +490,7 @@
     ;     (seesaw.core/listen
     ;       btn-print-ui-tree :action
     ;       (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
+    (setup-font-size-keys! worksheet-frame)
     (reify WorksheetWindow
       (show-worksheet-window! [_] (do
                                     (seesaw.core/show! worksheet-frame)
@@ -486,19 +513,6 @@
   "Dispose worksheet frame."
   [frame]
   (seesaw.core/dispose! frame))
-
-(defn set-on-windows-closed-handler
-  [^JFrame frame
-   handler]
-  (assert (ifn? handler))
-  (seesaw.core/listen frame :window-closed (fn [_] (handler))))
-
-; (defn set-on-explain-handler
-;   [frame handler]
-;   (assert (not= frame nil))
-;   (let [btn-explain (seesaw.core/select frame [:#explain])]
-;     (assert (not= btn-explain nil))
-;     (seesaw.core/listen btn-explain :action (fn [e] (handler)))))
 
 (defn set-on-execute-handler
   "Set Execute button handler."
@@ -546,13 +560,11 @@
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))))
 
-
 (defn choose-save-file
   "Show save dialog, return absolute path as string."
   [frame]
   (-> (^File seesaw.chooser/choose-file frame :type :save)
       (.getAbsolutePath)))
-
 
 (defn show-explain-plan!
   "Show explain plan."
