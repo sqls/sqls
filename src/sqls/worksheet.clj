@@ -269,6 +269,12 @@
   [worksheet]
   (println "open!" worksheet))
 
+(defn status-right-text!
+  [worksheet text]
+  (let [window (:window @worksheet)]
+    (sqls.ui.proto/status-right-text! window text)))
+
+
 (defn create-and-show-worksheet!
   "Create and show worksheet, intiate connecting, return worksheet data structure.
 

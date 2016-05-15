@@ -218,9 +218,7 @@
                                                                          btn-edit
                                                                          btn-delete
                                                                          btn-connect])]))]
-    (seesaw.core/listen frame :window-closed (fn [_]
-                                               (println "window closed")
-                                               ((:conn-list-closed handlers))))
+    (seesaw.core/listen frame :window-closed (fn [_] ((:conn-list-closed handlers))))
     (let [conn-list-window (reify
                              ConnListWindow
                              (show-conn-list-window!

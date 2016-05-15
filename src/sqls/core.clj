@@ -22,9 +22,11 @@
                                    invoke-later!
                                    show-conn-list-window!
                                    create-conn-list-window!
+                                   create-timer!
+                                   destroy-timer!
                                    set-conns!
                                    show-about!]]
-            [sqls.util :refer [debugf info infof warnf]])
+            [sqls.util :refer [debugf human-readable-size info infof warnf]])
   (:import [java.sql Connection]
            [sqls.model Conn]))
 
@@ -59,12 +61,14 @@
 
   SQLs atom is map and it contains following keys:
 
+  - :timer - UI timer,
   - :plugins - plugins,
   - :worksheets - map of worksheets, by conn name,
   - :conn-list - conn-list window or nil,
   - :connections - map of conn name to Conn record,
-  - :conf-dir - current value of conf-dir, configuration files go there."
-  [conf-dir connections plugins]
+  - :conf-dir - current value of conf-dir, configuration files go there,
+  - :ui - UI."
+  [ui conf-dir connections plugins]
   {:pre [(string? conf-dir)
          (map? connections)
          (sequential? plugins)
@@ -72,11 +76,13 @@
          ;; Each plugin is a map and has a name.
          (every? :name plugins)
          (every? string? (keys connections))]}
-  (let [s {:plugins     plugins
+  (let [s {:timer       nil
+           :plugins     plugins
            :worksheets  {}
            :connections connections
            :conf-dir    conf-dir
-           :conn-list   nil}]
+           :conn-list   nil
+           :ui          ui}]
     (atom s)))
 
 (defn save-conn!
@@ -158,21 +164,25 @@
     (assert (every? string? all-classes))
     (map (fn [c] [c (get class-names c)]) all-classes)))
 
-(defn maybe-exit!
+(defn window-closed!
+  "Called when one of the windows is closed (either Worksheet or ConnList)."
   [exit-on-close? sqls-atom]
   {:pre [(-> sqls-atom deref :worksheets map?)]}
-  (let [s @sqls-atom]
-    (when (and exit-on-close?
-               (empty? (:worksheets s))
+  (let [s @sqls-atom
+        ui (:ui s)]
+    (when (and (empty? (:worksheets s))
                (not (:conn-list s)))
-      (println "bye")
-      (System/exit 0))))
+      (println (format "last window closed"))
+      (when-let [t (:timer s)]
+        (destroy-timer! ui t))
+      (when exit-on-close?
+        (println "bye")
+        (System/exit 0)))))
 
 (defn on-conn-list-closed!
   [exit-on-close? sqls-atom]
   (swap! sqls-atom assoc :conn-list false)
-  (when exit-on-close?
-    (maybe-exit! exit-on-close? sqls-atom)))
+  (window-closed! exit-on-close? sqls-atom))
 
 (defn create-worksheet!
   [sqls-atom ui exit-on-close? conn-list-win conn-name]
@@ -194,10 +204,30 @@
                                 :worksheet-closed (fn [conn-name]
                                                     (swap! sqls-atom update :worksheets dissoc conn-name)
                                                     (enable-conn! conn-list-win conn-name)
-                                                    (maybe-exit! exit-on-close? sqls-atom))}
+                                                    (window-closed! exit-on-close? sqls-atom))}
             worksheet (sqls.worksheet/create-and-show-worksheet! ui conn-data worksheet-data worksheet-handlers)]
         (swap! sqls-atom assoc-in [:worksheets conn-name] worksheet)
         (disable-conn! conn-list-win conn-name)))))
+
+(defn get-mem-info!
+  []
+  (let [runtime (Runtime/getRuntime)
+        total (.totalMemory runtime)
+        free (.freeMemory runtime)
+        used (- total free)]
+    (str (human-readable-size used) " / " (human-readable-size total))))
+
+(defn create-sqls-timer!
+  [ui sqls-atom]
+  (let [timer-fn (fn timer-fn
+                   []
+                   (let [worksheets (:worksheets @sqls-atom)]
+                     (when (not (empty? worksheets))
+                       (let [mem-info (get-mem-info!)]
+                         (doseq [[_ worksheet] (:worksheets @sqls-atom)]
+                           (sqls.worksheet/status-right-text! worksheet mem-info))))))
+        ui-timer (create-timer! ui (* 2 4096) timer-fn)]
+    ui-timer))
 
 (defn -sqls
   "Run sqls, but don't exit unless exit-on-close? is set. Useful for running in repl.
@@ -225,7 +255,7 @@
                             (apply hash-map))
            ;; sqls-atom holds high level mutable state of sqls
            ;; state is bad, but inevitable, let's try to have it contained…
-           sqls-atom (create-sqls-atom! conf-dir connections plugins)
+           sqls-atom (create-sqls-atom! ui conf-dir connections plugins)
            _ (conf/ensure-conf-dir! conf-dir)
            settings (stor/load-settings! conf-dir)
            drivers (get-plugins-conns-drivers plugins connections)
@@ -244,6 +274,9 @@
                                                                            vals
                                                                            (sort-by :name)))]
        (swap! sqls-atom assoc :conn-list conn-list-window)
+       (let [timer (create-sqls-timer! ui sqls-atom)]
+         (println (format "timer: %s" timer))
+         (swap! sqls-atom assoc :timer timer))
        (show-conn-list-window! conn-list-window)))))
 
 (defn -main

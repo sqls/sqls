@@ -23,6 +23,7 @@
   (select-tab! [ww i])
   (log! [ww s])
   (status-text! [ww s])
+  (status-right-text! [ww s])
   ;; This is to workaround bug on OS X where Frames are never garbage collected.
   ;; The Frame itself is usually small, but for example Rich Text Area can reference
   ;; significant amount of memory.
@@ -34,6 +35,8 @@
   (invoke-later! [ui f])
   (show-error! [ui msg])
   (show-about! [ui text])
+  (create-timer! [ui interval f])
+  (destroy-timer! [ui timer])
   (create-conn-list-window! [ui handlers drivers plugins connections])
   (create-worksheet-window! [ui conn-name worksheet-data]))
 

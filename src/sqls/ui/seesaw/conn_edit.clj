@@ -60,11 +60,9 @@
   [frame]
   (alert frame "OK"))
 
-
 (defn show-test-failure!
   [frame message]
   (alert frame (format "Connection failed:\n%s" message)))
-
 
 (defn on-btn-test-connection
   "Handle \"Test\" button click.

@@ -9,7 +9,7 @@
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
             [sqls.util :refer [debugf str-or-nil?]])
-  (:import [java.awt Component Container Dimension Font Point Rectangle Toolkit]
+  (:import [java.awt Component Container Dimension Font GridBagConstraints GridBagLayout Insets Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
            [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
@@ -211,7 +211,7 @@
     word))
 
 (defn log!
-  "Add log message to status panel."
+  "Add log message to log panel."
   [^JFrame frame
    ^String message]
   (let [log-tab (seesaw.core/select frame [:#log-panel])
@@ -232,6 +232,15 @@
   (let [status-bar-text (seesaw.core/select frame [:#status-bar-text])]
     (assert (not= status-bar-text nil))
     (seesaw.core/text! status-bar-text message)))
+
+(defn status-right-text!
+  "Set right panel status bar text."
+  [^JFrame frame message]
+  {:pre [(instance? JFrame frame)
+         (string? message)]}
+  (seesaw.core/text!
+    (seesaw.core/select frame [:#status-bar-right-text])
+    message))
 
 (defn set-on-scroll-handler!
   "Add handler to fetch more results on scroll."
@@ -394,6 +403,23 @@
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler-plus plus-key-stroke))
     (seesaw.core/listen sql-text-area :key-pressed (partial on-key-press! handler-minus minus-key-stroke))))
 
+(defn create-status-bar-panel!
+  []
+  (let [panel (JPanel.)
+        grid-bag-layout (GridBagLayout.)
+        grid-bag-constraints (GridBagConstraints.)
+        insets (Insets. 2 2 2 2)
+        _ (set! (.-fill grid-bag-constraints) GridBagConstraints/HORIZONTAL)
+        _ (set! (.-insets grid-bag-constraints) insets)
+        label-left (seesaw.core/label :id :status-bar-text :text "Hello")
+        label-right (seesaw.core/label :id :status-bar-right-text :h-text-position :right)
+        _ (.setLayout panel grid-bag-layout)
+        _ (set! (.-weightx grid-bag-constraints) 0.8)
+        _ (.add panel label-left grid-bag-constraints)
+        _ (set! (.-weightx grid-bag-constraints) 0.2)
+        _ (.add panel label-right grid-bag-constraints)]
+    panel))
+
 (defn create-worksheet-window!
   "Create implementation of sqls.ui.proto.WorksheetWindow interface.
 
@@ -473,8 +499,7 @@
         center-panel (seesaw.core/top-bottom-split query-text-area-scrollable tabs-panel
                                                    :id :splitter
                                                    :divider-location split-ratio)
-        south-panel (seesaw.core/horizontal-panel :items [(seesaw.core/label :id :status-bar-text
-                                                                             :text " ")])
+        south-panel (create-status-bar-panel!)
         border-panel (seesaw.core/border-panel :north menu-panel
                                                :center center-panel
                                                :south south-panel)
@@ -505,6 +530,7 @@
       (get-word! [_] (get-word! worksheet-frame))
       (log! [_ t] (log! worksheet-frame t))
       (status-text! [_ t] (status-text! worksheet-frame t))
+      (status-right-text! [_ t] (status-right-text! worksheet-frame t))
       (show-results! [_ c r] (show-results! worksheet-frame c r))
       (select-tab! [_ i] (select-tab! worksheet-frame i))
       (release-resources! [_] (release-resources! worksheet-frame)))))

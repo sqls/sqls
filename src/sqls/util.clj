@@ -90,13 +90,11 @@
         jars (apply concat lists-of-jars)]
     jars))
 
-
 (defn dir-exists?
   "Check if dir exists."
   [^String d]
   (let [df (File. d)]
     (and df (.exists df) (.isDirectory df))))
-
 
 (defn file-exists?
   "Check if file named by f exists."
@@ -142,6 +140,17 @@
   ([msg value]
    (println (format "%s: %s" msg value))
    value))
+
+(defn human-readable-size
+  [b]
+  {:pre [(number? b)
+         (not (neg? b))]}
+  (let [units ["B" "KiB" "MiB" "GiB" "TiB" "PiB"]]
+    (loop [b (float b)
+           units units]
+      (if (> b 512)
+        (recur (/ b 1024) (rest units))
+        (format "%.2f %s" b (first units))))))
 
 (defn format-tabular
   [rows]

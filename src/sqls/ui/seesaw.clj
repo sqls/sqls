@@ -5,8 +5,9 @@
                                    UI]]
             [sqls.ui.seesaw.conn-list :as conn-list]
             sqls.ui.seesaw.conn-edit
-            sqls.ui.seesaw.worksheet))
-
+            sqls.ui.seesaw.worksheet)
+  (:import [java.awt.event ActionListener]
+           [javax.swing Timer]))
 
 (defn show-about-dialog!
   [^String text]
@@ -22,6 +23,24 @@
     (seesaw.core/pack! dialog)
     (seesaw.core/scroll! text-field :to :top)
     (seesaw.core/show! dialog)))
+
+(defn create-timer!
+  "Create and start timer, return it.
+  - timer-interval - timer interval in ms,
+  - f - function of no params to call in timer."
+  [timer-interval f]
+  {:pre [(pos? timer-interval)
+         (ifn? f)]}
+  (let [action-listener (reify ActionListener
+                          (actionPerformed [_ e] (f)))
+        timer (Timer. timer-interval action-listener)]
+    (.start timer)
+    timer))
+
+(defn destroy-timer!
+  [timer]
+  (println (format "stopping timer %s" timer))
+  (.stop timer))
 
 (defn create-ui!
   "Create UI."
@@ -43,6 +62,8 @@
     (show-about!
       [_ text]
       (show-about-dialog! text))
+    (create-timer! [_ interval f] (create-timer! interval f))
+    (destroy-timer! [_ timer] (destroy-timer! timer))
     (create-conn-list-window!
       [ui drivers plugins handlers connections]
       (assert (sequential? plugins))
