@@ -180,5 +180,6 @@
         _ (.setFetchSize stmt 128)
         has-result-set (.execute stmt)]
     (if has-result-set
-      (clojure.java.jdbc/result-set-seq (.getResultSet stmt) :as-arrays? true)
+      (clojure.java.jdbc/result-set-seq (.getResultSet stmt) {:as-arrays? true})
       nil)))
+
