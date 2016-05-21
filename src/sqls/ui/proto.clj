@@ -20,6 +20,7 @@
   (get-split-ratio! [ww])
   (choose-save-file! [ww])
   (show-results! [ww columns rows])
+  (clear-results! [ww])
   (select-tab! [ww i])
   (log! [ww s])
   (status-text! [ww s])

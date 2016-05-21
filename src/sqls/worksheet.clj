@@ -67,6 +67,12 @@
           (sqls.ui.proto/select-tab! window 1)
           (sqls.ui.proto/log! window (str maybe-desc "\n")))))))
 
+(defn clear-results!
+  [worksheet]
+  {:pre [(:window @worksheet)]}
+  (swap! worksheet dissoc :result)
+  (sqls.ui.proto/clear-results! (:window @worksheet)))
+
 (defn worksheet-cmds!
   "Get worksheet commands.
   Can have side effects.
@@ -86,7 +92,9 @@
                       {:text "Rollback"
                        :fn (partial rollback! worksheet)}
                       {:text "Describe"
-                       :fn (partial describe! worksheet)}]]
+                       :fn (partial describe! worksheet)}
+                      {:text "Clear results"
+                       :fn (partial clear-results! worksheet)}]]
     (filter (fn [cmd] (match cmd text)) all-commands)))
 
 (defn create-worksheet!

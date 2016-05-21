@@ -1,4 +1,3 @@
-
 (ns sqls.jdbc
   "Encapsulate JDBC stuff, expose trivial API.
   All JDBC interaction should be routed via this ns."
@@ -160,13 +159,11 @@
                                       :msg (str e)
                                       :desc (exception-to-stacktrace e)}))))
 
-
 (defn close!
   "Close connection."
   [^java.sql.Connection conn]
   (assert (not= conn nil))
   (.close conn))
-
 
 (defn execute!
   "Execute SQL on connection.

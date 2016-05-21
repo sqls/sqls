@@ -357,6 +357,15 @@
     ;; pass atom to scroll-handler - they will alter it when reading more rows from lazy seq part
     (set-on-scroll-handler! frame (partial on-results-table-scrolled! frame (atom rows)))))
 
+(defn clear-results!
+  "Clear results pane."
+  [^JFrame frame]
+  {:pre [(instance? JFrame frame)]}
+  (let [^JPanel results-panel (seesaw.core/select frame [:#results-panel])
+        to-remove (seesaw.core/select frame [:#results-panel :> :*])]
+    (doall (map (partial seesaw.core/remove! results-panel) to-remove))))
+
+
 (defn select-tab!
   [^JFrame frame
    idx]
@@ -532,6 +541,7 @@
       (status-text! [_ t] (status-text! worksheet-frame t))
       (status-right-text! [_ t] (status-right-text! worksheet-frame t))
       (show-results! [_ c r] (show-results! worksheet-frame c r))
+      (clear-results! [_] (clear-results! worksheet-frame))
       (select-tab! [_ i] (select-tab! worksheet-frame i))
       (release-resources! [_] (release-resources! worksheet-frame)))))
 
@@ -577,14 +587,6 @@
         x (.x p)
         y (.y p)]
     [x y w h]))
-
-(defn clear-results!
-  "Clear results pane."
-  [^JFrame frame]
-  (assert (not= frame nil))
-  (let [^JPanel results-panel (seesaw.core/select frame [:#results-panel])
-        to-remove (seesaw.core/select frame [:#results-panel :> :*])]
-    (doall (map (partial seesaw.core/remove! results-panel) to-remove))))
 
 (defn choose-save-file
   "Show save dialog, return absolute path as string."
