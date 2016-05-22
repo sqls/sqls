@@ -2,6 +2,7 @@
   "Conn list window UI implementation."
   (:require
     [clojure.pprint :refer [pprint]]
+    fipp.edn
     seesaw.core
     [seesaw.bind :as b]
     seesaw.keymap
@@ -13,7 +14,9 @@
     sqls.ui.seesaw.conn-edit)
   (:import
     [clojure.lang Atom]
-    [javax.swing JFrame]))
+    [java.awt Point]
+    [java.awt.event MouseEvent]
+    [javax.swing JFrame JTable]))
 
 (defn build-connection-list-item
   "Convert one connection to UI item struct."
@@ -162,6 +165,24 @@
       (doseq [[i row] (map vector (range) rows)]
         (seesaw.table/insert-at! table i row)))))
 
+(defn on-conn-list-table-mouse-clicked!
+  [conn-list-window
+   create-worksheet!
+   ^MouseEvent event]
+  {:pre [(ifn? create-worksheet!)]}
+  (let [click-count (.getClickCount event)]
+    (when (= 2 click-count)
+      (let [^JTable table (.getSource event)
+            ^Point point (.getPoint event)
+            row-index (.rowAtPoint table point)]
+        (when (or (zero? row-index) (pos? row-index))
+          (let [conn-table-item (seesaw.table/value-at table row-index)
+                conn-info (:conn-data conn-table-item)
+                conn-name (:name conn-info)]
+            (assert (not (nil? conn-name)))
+            (assert (string? conn-name))
+            (create-worksheet! conn-list-window (:name conn-info))))))))
+
 (defn create-conn-list-window!
   "Create login window.
   Parameters:
@@ -228,6 +249,7 @@
                              (enable-conn! [_ conn-name] (enable-conn! enabled-connections-atom conn-name))
                              (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name))
                              (set-conns! [_ conns] (set-conns! conn-list-table conns)))]
+      (seesaw.core/listen conn-list-table :mouse-clicked (partial on-conn-list-table-mouse-clicked! conn-list-window (:create-worksheet handlers)))
       ;; We should not pass plugins here… instead UI should be dumb… we should probably have a handler
       ;; to get JDBC template for given params.
       (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers plugins (:save-conn handlers) (:test-conn handlers)))
