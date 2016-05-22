@@ -2,6 +2,7 @@
   (:use [clojure.string :only (join split-lines trim)])
   (:require seesaw.chooser
             seesaw.core
+            seesaw.keymap
             seesaw.keystroke
             seesaw.rsyntax
             seesaw.table)
@@ -525,6 +526,10 @@
     ;       btn-print-ui-tree :action
     ;       (fn [_] (ui-dev/print-ui-tree worksheet-frame)))))
     (setup-font-size-keys! worksheet-frame)
+    (seesaw.keymap/map-key worksheet-frame
+                           (seesaw.keystroke/keystroke "menu W")
+                           (fn [_] (seesaw.core/dispose! worksheet-frame))
+                           :scope :global)
     (reify WorksheetWindow
       (show-worksheet-window! [_] (do
                                     (seesaw.core/show! worksheet-frame)

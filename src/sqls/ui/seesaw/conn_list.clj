@@ -4,6 +4,8 @@
     [clojure.pprint :refer [pprint]]
     seesaw.core
     [seesaw.bind :as b]
+    seesaw.keymap
+    seesaw.keystroke
     seesaw.table
     [sqls.model :refer [conn?]]
     [sqls.util :refer [all? any?]]
@@ -12,7 +14,6 @@
   (:import
     [clojure.lang Atom]
     [javax.swing JFrame]))
-
 
 (defn build-connection-list-item
   "Convert one connection to UI item struct."
@@ -24,13 +25,11 @@
    :jar (:jar conn)
    :conn-data conn})
 
-
 (defn build-connection-list-model
   "Return model for UI table based on connection list."
   [connections]
   [:columns [:name :desc :class :jar]
    :rows (map build-connection-list-item connections)])
-
 
 (defn build-connection-list-table
   "Create a UI component that contains list of connections, bo be added to respective container.
@@ -41,7 +40,6 @@
             :preferred-size [480 :by 320]
             :model (build-connection-list-model connections))]
     t))
-
 
 (defn set-conn-list-frame-bindings!
   [^JFrame frame
@@ -78,7 +76,6 @@
           (b/property btn-delete :enabled?)
           (b/property btn-edit :enabled?))))))
 
-
 (defn get-selected-conn-data
   "Extract currently selected conn-data from connection list frame."
   [^JFrame frame]
@@ -88,7 +85,6 @@
         conn-item (seesaw.table/value-at table selected-table-item)
         conn-data (:conn-data conn-item)]
     conn-data))
-
 
 (defn on-btn-add-click!
   "Handle add connection button in conn list frame."
@@ -219,6 +215,10 @@
                                                                          btn-delete
                                                                          btn-connect])]))]
     (seesaw.core/listen frame :window-closed (fn [_] ((:conn-list-closed handlers))))
+    (seesaw.keymap/map-key frame
+                           (seesaw.keystroke/keystroke "menu W")
+                           (fn [_] (seesaw.core/dispose! frame))
+                           :scope :global)
     (let [conn-list-window (reify
                              ConnListWindow
                              (show-conn-list-window!
