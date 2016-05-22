@@ -378,10 +378,9 @@
 
 (defn release-resources!
   "Detach all components from frame to allow them to be garbage collected.
-  This is a workaround of JRE's bug."
+  This is a workaround of JRE's bug: https://bugs.openjdk.java.net/browse/JDK-8029147"
   [^JFrame frame]
   {:pre [(not (nil? frame))]}
-  (println (format "release-resources! on %s" frame))
   (.setLayout frame nil)
   (when-let [p (.getContentPane frame)]
     (.removeAll p))
