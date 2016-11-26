@@ -15,13 +15,14 @@
            [java.io File]
            [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
            [javax.swing.table TableColumn]
-           [javax.swing.text DefaultEditorKit]))
+           [javax.swing.text DefaultEditorKit]
+           [org.fife.ui.rsyntaxtextarea RSyntaxTextArea]))
 
 (defn fix-textarea-bindings!
   "Fix rich-text-area bindings.
   Note that it does modify its argument before returning it."
-  ^JTextArea
-  [^JTextArea t]
+  ^RSyntaxTextArea
+  [^RSyntaxTextArea t]
   (let [is-osx (-> (System/getProperty "os.name") (.toLowerCase) (.startsWith "mac os x"))
         ctrl-enter-ks (KeyStroke/getKeyStroke "control pressed ENTER")
         m (.getInputMap t)]
@@ -473,6 +474,8 @@
                                                                           :syntax :sql
                                                                           :columns 80
                                                                           :rows 25))
+        _ (.setTabSize query-text-area 4)
+        _ (.setTabsEmulated query-text-area true)
         query-text-area-scrollable (seesaw.core/scrollable query-text-area)
         results-panel (seesaw.core/vertical-panel :id :results-panel
                                                   :preferred-size [800 :by 400])
