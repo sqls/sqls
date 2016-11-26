@@ -3,20 +3,21 @@
   :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[io.aviso/pretty "0.1.26"]
-                 [fipp "0.6.5"]
+  :dependencies [[com.fifesoft/rsyntaxtextarea "2.6.0"]
+                 [fipp "0.6.7"]
+                 [io.aviso/pretty "0.1.32"]
                  [org.clojure/clojure "1.8.0"]
                  [org.clojure/data.json "0.2.6"]
                  [org.clojure/java.jdbc "0.6.1"]
                  [org.clojure/tools.cli "0.3.5"]
                  [org.clojure/tools.logging "0.3.1"]
-                 [org.xerial/sqlite-jdbc "3.8.11.2"]
+                 [org.xerial/sqlite-jdbc "3.15.1"]
                  [seesaw "1.4.5"]]
   :main sqls.core
   :java-source-paths ["src"]
   :javac-options ["-target" "1.7" "-source" "1.7"]
   :target-path "target/%s"
-  :plugins [[lein-codox "0.9.5"]]
+  :plugins [[lein-codox "0.10.2"]]
   :codox {:output-dir "doc/codox"}
   :profiles {:uberjar {:aot :all}
              :repl {:dependencies [[org.clojure/tools.namespace "0.2.11"]]}
