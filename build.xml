@@ -20,6 +20,7 @@
                 jvmrequired="1.8"
                 icon="resources/sqls.icns">
             <classpath file="target/uberjar/sqls-${sqls.version}-standalone.jar"/>
+            <runtime dir="${env.JAVA_HOME}"/>
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>
