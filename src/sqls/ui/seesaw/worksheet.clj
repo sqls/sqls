@@ -13,7 +13,7 @@
   (:import [java.awt Component Dimension Font GridBagConstraints GridBagLayout Insets Label Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
-           [javax.swing JComponent JFrame JPanel JScrollPane JTable JViewport KeyStroke]
+           [javax.swing JComponent JFrame JPanel JScrollPane JTable JViewport KeyStroke JScrollBar]
            [javax.swing.table DefaultTableModel TableColumn]
            [javax.swing.text DefaultEditorKit]
            [org.fife.ui.rsyntaxtextarea RSyntaxTextArea]))
@@ -256,7 +256,6 @@
 (defn get-scroll-position!
   "Return scroll position as float."
   [^JViewport viewport]
-  (assert (not= viewport nil))
   (let [^Dimension view-size (.getViewSize viewport)
         ^Rectangle view-rect (.getViewRect viewport)
         view-rect-pos (float (.y view-rect))
@@ -267,32 +266,26 @@
     view-scroll-position))
 
 (defn append-row!
-  [^JTable results-table row]
-  {:pre [results-table
-         row]}
-  (let [^DefaultTableModel model (.getModel results-table)
-        ^objects row-array (into-array Object row)]
-    (.addRow model row-array)))
+  [^DefaultTableModel results-table-model
+   row]
+  (let [^objects row-array (into-array Object row)]
+    (.addRow results-table-model row-array)))
 
 (defn append-rows!
   "Append rows to worksheet results table.
   Params:
   - new-rows is a seq of new rows to be appended."
-  [^JFrame frame
+  [^JTable results-table
    new-rows]
-  {:pre [frame
-         (sequential? new-rows)]}
-  (let [results-table (seesaw.core/select frame [:#results-table])]
-    (assert (not (nil? results-table)))
-    (doall (map (partial append-row! results-table) new-rows))))
+  (let [results-table-model (.getModel results-table)]
+    (doseq [row new-rows]
+      (append-row! results-table-model row))))
 
+;; This needs to be optimized.
 (defn fetch-more-results!
   "Try to load more results from lazy sequence of results."
-  [^JFrame frame
+  [^JTable results-table
    results-atom]
-  {:pre [frame
-         (sequential? @results-atom)
-         (= 2 (count @results-atom))]}
   (let [[strict-rows lazy-rows] @results-atom
         strict-rows-count (count strict-rows)
         new-count (+ strict-rows-count 256)
@@ -301,19 +294,17 @@
         new-rows [new-strict-rows lazy-rows]]
     (reset! results-atom new-rows)
     (let [new-new-rows (nthrest new-strict-rows (count strict-rows))]
-      (append-rows! frame new-new-rows))))
+      (append-rows! results-table new-new-rows))))
 
 (defn on-results-table-scrolled!
-  [^JFrame frame
+  [^JScrollPane results-table-scroll-pane
+   ^JTable results-table
    results-atom
    _event]
-  {:pre [frame
-         (sequential? @results-atom)]}
-  (let [^JScrollPane table-scrollable (seesaw.core/select frame [:#results-table-scrollable])
-        ^JViewport viewport (.getViewport table-scrollable)
+  (let [^JViewport viewport (.getViewport results-table-scroll-pane)
         scroll-pos (get-scroll-position! viewport)]
-    (if (> scroll-pos 0.75)
-      (fetch-more-results! frame results-atom))))
+    (when (> scroll-pos 0.75)
+      (fetch-more-results! results-table results-atom))))
 
 (defn show-results!
   "Display results inside results panel.
@@ -331,34 +322,48 @@
   {:pre [frame
          (sequential? rows)
          (= 2 (count rows))]}
-  (let [[strict-rows lazy-rows] rows
-        ^JTable results-table (seesaw.core/table :id :results-table
-                                                 :auto-resize :off
-                                                 :model [:columns columns
-                                                         :rows strict-rows])
-        results-table-scrollable (seesaw.core/scrollable results-table :id :results-table-scrollable)
+  (let [[strict-rows _lazy-rows] rows
+        ^objects j-columns (into-array Object columns)
+        j-rows (into-array (Class/forName "[Ljava.lang.Object;")
+                           (for [row strict-rows]
+                             (into-array Object row)))
+        ^DefaultTableModel table-model (DefaultTableModel. j-rows j-columns)
+        ^JTable results-table (JTable. table-model)
+        _ (.putClientProperty results-table
+                              :seesaw.core/seesaw-widget-id
+                              :results-table)
+        _ (.setAutoResizeMode results-table JTable/AUTO_RESIZE_OFF)
+        ^JScrollPane results-table-scroll-pane (JScrollPane. results-table
+                                                             JScrollPane/VERTICAL_SCROLLBAR_ALWAYS
+                                                             JScrollPane/HORIZONTAL_SCROLLBAR_ALWAYS)
+        _ (.putClientProperty results-table-scroll-pane
+                              :seesaw.core/seesaw-widget-id
+                              :results-table-scrollable)
+        _ (let [scrollbar (.getHorizontalScrollBar results-table-scroll-pane)]
+            (.setBlockIncrement scrollbar 100)
+            (.setUnitIncrement scrollbar 20))
         ^JPanel results-panel (seesaw.core/select frame [:#results-panel])
         to-remove (seesaw.core/select frame [:#results-panel :> :*])]
     (doall (map (partial seesaw.core/remove! results-panel) to-remove))
-    (seesaw.core/add! results-panel results-table-scrollable)
+    (seesaw.core/add! results-panel results-table-scroll-pane)
     (if (> (count strict-rows) 0)
       (let [table-column-model (.getColumnModel results-table)
             column-count (count columns)
-            row-count (count strict-rows)
             max-column-widths (vec (for [column-index (range column-count)]
                                      (max 4
-                                          (let [
-                                                column-values (map str (map #(get % column-index) strict-rows))
+                                          (let [column-values (map str (map #(get % column-index) strict-rows))
                                                 column-value-lengths (map count column-values)
                                                 max-column-value-length (apply max column-value-lengths)]
-                                            max-column-value-length))))
-            ]
+                                            max-column-value-length))))]
         (doall (for [column-index (range column-count)]
                  (let [^TableColumn table-column (.getColumn table-column-model column-index)
                        column-width (get max-column-widths column-index)]
                    (.setPreferredWidth table-column (* column-width 10)))))))
     ;; pass atom to scroll-handler - they will alter it when reading more rows from lazy seq part
-    (set-on-scroll-handler! frame (partial on-results-table-scrolled! frame (atom rows)))))
+    (set-on-scroll-handler! frame (partial on-results-table-scrolled!
+                                           results-table-scroll-pane
+                                           results-table
+                                           (atom rows)))))
 
 (defn clear-results!
   "Clear results pane."

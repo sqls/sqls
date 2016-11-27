@@ -1,4 +1,4 @@
-(defproject sqls "0.1.9"
+(defproject sqls "0.1.10"
   :description "SQLS"
   :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
@@ -16,6 +16,7 @@
   :main sqls.core
   :java-source-paths ["src"]
   :javac-options ["-target" "1.7" "-source" "1.7"]
+  :jvm-opts ["-Dclojure.compiler.direct-linking=true"]
   :target-path "target/%s"
   :plugins [[lein-codox "0.10.2"]]
   :codox {:output-dir "doc/codox"}
@@ -23,4 +24,9 @@
              :repl {:dependencies [[org.clojure/tools.namespace "0.2.11"]]}
              :dev {:dependencies [[org.clojure/tools.namespace "0.2.11"]]
                    :global-vars {*warn-on-reflection* true}
-                   :jvm-opts ["-Xms16M" "-Xmx4G" "-XX:+PrintGC" "-XX:+PrintGCDateStamps" "-XX:+UseG1GC" "-XX:MaxGCPauseMillis=1"]}})
+                   :jvm-opts ["-Xms16M"
+                              "-Xmx4G"
+                              "-XX:+PrintGC"
+                              "-XX:+PrintGCDateStamps"
+                              "-XX:+UseG1GC"
+                              "-XX:MaxGCPauseMillis=1"]}})
