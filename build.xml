@@ -1,6 +1,6 @@
 <project default="bundle">
     <property environment="env"/>
-    <property name="sqls.version">0.1.9</property>
+    <property name="sqls.version">0.1.10</property>
     <taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask">
         <classpath>
             <pathelement location="lib/appbundler-1.0ea.jar"/>
