@@ -1,13 +1,17 @@
 <project default="bundle">
     <property environment="env"/>
-    <property name="sqls.version">0.1.8</property>
+    <property name="sqls.version">0.1.9</property>
     <taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask">
         <classpath>
             <pathelement location="lib/appbundler-1.0ea.jar"/>
         </classpath>
     </taskdef>
+    <path id="runclasspathref">
+        <pathelement location="target/uberjar/sqls-${sqls.version}-standalone.jar"/>
+    </path>
     <target name="bundle">
         <bundleapp
+                classpathref="runclasspathref"
                 executablename="SQLs"
                 outputdirectory="target"
                 name="SQLs"
@@ -18,9 +22,9 @@
                 applicationCategory="public.app-category.developer-tools"
                 mainclassname="sqls.core"
                 jvmrequired="1.8"
+                jrepreferred="true"
                 icon="resources/sqls.icns">
-            <classpath file="target/uberjar/sqls-${sqls.version}-standalone.jar"/>
-            <runtime dir="${env.JAVA_HOME}"/>
+            <!-- <runtime dir="${env.JAVA_HOME}"/> -->
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
             <option value="-Xms32M" name="Xms"/>

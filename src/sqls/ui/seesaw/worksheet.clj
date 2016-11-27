@@ -10,11 +10,11 @@
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
             [sqls.util :refer [debugf str-or-nil?]])
-  (:import [java.awt Component Container Dimension Font GridBagConstraints GridBagLayout Insets Point Rectangle Toolkit]
+  (:import [java.awt Component Dimension Font GridBagConstraints GridBagLayout Insets Label Point Rectangle Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
-           [javax.swing JFrame JPanel JScrollPane JTable JViewport JTextArea KeyStroke JComponent]
-           [javax.swing.table TableColumn]
+           [javax.swing JComponent JFrame JPanel JScrollPane JTable JViewport KeyStroke]
+           [javax.swing.table DefaultTableModel TableColumn]
            [javax.swing.text DefaultEditorKit]
            [org.fife.ui.rsyntaxtextarea RSyntaxTextArea]))
 
@@ -270,8 +270,9 @@
   [^JTable results-table row]
   {:pre [results-table
          row]}
-  (let [row-count (seesaw.table/row-count results-table)]
-    (seesaw.table/insert-at! results-table row-count row)))
+  (let [^DefaultTableModel model (.getModel results-table)
+        ^objects row-array (into-array Object row)]
+    (.addRow model row-array)))
 
 (defn append-rows!
   "Append rows to worksheet results table.
@@ -421,8 +422,8 @@
         insets (Insets. 2 2 2 2)
         _ (set! (.-fill grid-bag-constraints) GridBagConstraints/HORIZONTAL)
         _ (set! (.-insets grid-bag-constraints) insets)
-        label-left (seesaw.core/label :id :status-bar-text :text "Hello")
-        label-right (seesaw.core/label :id :status-bar-right-text :h-text-position :right)
+        ^Label label-left (seesaw.core/label :id :status-bar-text :text "Hello")
+        ^Label label-right (seesaw.core/label :id :status-bar-right-text :h-text-position :right)
         _ (.setLayout panel grid-bag-layout)
         _ (set! (.-weightx grid-bag-constraints) 0.8)
         _ (.add panel label-left grid-bag-constraints)

@@ -23,7 +23,7 @@
                      {:command (:text result)
                       :fn (:fn result)})
                    results)
-        table (seesaw.core/select glass [:#results-table])]
+        table (seesaw.core/select glass [:#cmd-results-table])]
     (assert (not (nil? table)))
     (seesaw.table/clear! table)
     (when (and rows (not (empty? rows)))
@@ -49,7 +49,7 @@
   {:pre [cmd-atom
          (map? @cmd-atom)
          glass]}
-  (let [^JTable results-table (seesaw.core/select glass [:#results-table])
+  (let [^JTable results-table (seesaw.core/select glass [:#cmd-results-table])
         _ (assert results-table)
         ^ListSelectionModel selection-model (.getSelectionModel results-table)
         current-idx (let [i (.getMinSelectionIndex selection-model)]
@@ -75,7 +75,7 @@
          cmd-atom
          (map? @cmd-atom)
          glass]}
-  (let [^JTable table (seesaw.core/select glass [:#results-table])
+  (let [^JTable table (seesaw.core/select glass [:#cmd-results-table])
         count (seesaw.table/row-count table)
         selection-model (.getSelectionModel table)
         event-ks (KeyStroke/getKeyStrokeForEvent e)
@@ -114,7 +114,7 @@
   (let [cmd-atom (atom {:text ""})
         ^Component t (seesaw.core/text :id :input)     ; input
         ^JPanel cmds-box (JPanel. (BorderLayout.))     ; contains input and results
-        ^JTable results-table (seesaw.core/table :id :results-table
+        ^JTable results-table (seesaw.core/table :id :cmd-results-table
                                                  :model [:columns [{:key :command :text ""}]
                                                  :rows []])
         results-table-selection-model (.getSelectionModel results-table)
