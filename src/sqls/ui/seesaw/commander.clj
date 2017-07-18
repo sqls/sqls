@@ -3,7 +3,7 @@
   (:require fipp.edn
             seesaw.core
             seesaw.table
-            [sqls.util :refer [infof]])
+            [taoensso.timbre :refer [infof]])
   (:import (javax.swing JComponent JFrame JPanel KeyStroke Box JScrollPane ListSelectionModel JTable)
            (java.awt Component BorderLayout)
            (java.awt.event MouseAdapter InputEvent)))

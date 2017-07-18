@@ -199,7 +199,9 @@
         all-text (seesaw.core/value sql-comp)
         caret-position (seesaw.core/config sql-comp :caret-position)
         word-char? (fn [c]
-                     (and (not= c \space)
+                     (and (not= c \newline)
+                          (not= c \tab)
+                          (not= c \space)
                           (not= c \;)))
         word (apply str (concat
                           (->> all-text

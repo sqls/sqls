@@ -2,7 +2,8 @@
   "Adds support for PostgreSQL databases."
   (:require [clojure.string :as s]
             [clojure.java.jdbc :as j]
-            [sqls.util :refer [debugf format-tabular]]))
+            [sqls.util :refer [format-tabular]]
+            [taoensso.timbre :refer [debugf]]))
 
 (defn classes
   []
@@ -11,12 +12,11 @@
 (defn psql-describe-object!
   "Try to find useful info about given object."
   [conn object-name]
-  (debugf "object-name: %s" object-name)
   (let [table-info (-> (j/query {:connection conn}
                                 ["select table_catalog, table_schema, table_name
-                                 from information_schema.tables
-                                 where table_name = ?
-                                 limit 1"
+                                  from information_schema.tables
+                                  where table_name = ?
+                                  limit 1"
                                  object-name])
                        first)
         columns (when table-info
