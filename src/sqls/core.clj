@@ -201,6 +201,7 @@
             worksheet-data (stor/load-worksheet-data! conf-dir conn-name)
             worksheet-handlers {:save-worksheet-data (fn [data] (stor/save-worksheet-data! conf-dir conn-name data))
                                 :describe-object (fn [conn object-name] (sqls.plugin/describe-object! conn object-name plugins))
+                                :list-schemas (fn [conn] (sqls.plugin/list-schemas! conn plugins))
                                 :worksheet-closed (fn [conn-name]
                                                     (swap! sqls-atom update :worksheets dissoc conn-name)
                                                     (enable-conn! conn-list-win conn-name)

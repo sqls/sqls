@@ -67,6 +67,28 @@
           (sqls.ui.proto/select-tab! window 1)
           (sqls.ui.proto/log! window (str maybe-desc "\n")))))))
 
+(defn cmd-list-schemas!
+  "Execute command to list schemas, usually invoked from command palette.
+  Param worksheet is a worksheet an atom which contains mutable worksheet
+  state."
+  [worksheet-atom]
+  (let [worksheet @worksheet-atom
+        _ (assert (map? worksheet))
+        conn (:conn worksheet)
+        _ (assert (not (nil? conn)))
+        window (:window worksheet)
+        _ (assert (not (nil? window)))
+        ;; We don't really want worksheet to know how to list schemas, since
+        ;; it involves plugins... (?)
+        ;; So we ask core to provide fn for that.
+        list-schemas-fn (-> worksheet :handlers :list-schemas)
+        _ (assert (ifn? list-schemas-fn))]
+    (let [maybe-schemas (list-schemas-fn conn)]
+      (assert (or (nil? maybe-schemas) (string? maybe-schemas)))
+      (when maybe-schemas
+        (sqls.ui.proto/select-tab! window 1)
+        (sqls.ui.proto/log! window (str maybe-schemas "\n"))))))
+
 (defn clear-results!
   [worksheet]
   {:pre [(:window @worksheet)]}
@@ -93,6 +115,8 @@
                        :fn (partial rollback! worksheet)}
                       {:text "Describe"
                        :fn (partial describe! worksheet)}
+                      {:text "List Schemas"
+                       :fn (partial cmd-list-schemas! worksheet)}
                       {:text "Clear results"
                        :fn (partial clear-results! worksheet)}]]
     (filter (fn [cmd] (match cmd text)) all-commands)))
@@ -307,6 +331,8 @@
    handlers]
   (assert (instance? UI ui))
   (assert (or (nil? worksheet-data) (map? worksheet-data)))
+  (assert (not (nil? (:describe-object handlers))))
+  (assert (not (nil? (:list-schemas handlers))))
   (let [worksheet (create-worksheet! ui conn-data worksheet-data handlers)]
     (assert (not (nil? (:window @worksheet))))
     (let [window (:window @worksheet)

@@ -46,8 +46,25 @@
                                         (:data_type column)])
                                      columns)))))))
 
+(defn psql-list-schemas!
+  [conn]
+  (let [rows (-> (j/query {:connection conn}
+                           ["select schema_name
+                            from information_schema.schemata
+                            order by schema_name"]))]
+    (when (not (empty? rows))
+      (format "Schemas:\n%s\n"
+              (s/join "\n"
+                      (format-tabular
+                        (map-indexed
+                          (fn [i row]
+                            [(str (inc i) ".")
+                             (:schema_name row)])
+                          rows)))))))
+
 (def psql-plugin
   {:name "PostgreSQL"
    :classes classes
    :jdbc-url-template "jdbc:postgresql://<host>:<port>/<database>?user=<user>&password=<password>"
-   :describe-object psql-describe-object!})
+   :describe-object psql-describe-object!
+   :list-schemas psql-list-schemas!})
