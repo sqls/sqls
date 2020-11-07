@@ -1,5 +1,6 @@
 *.class
 *.jar
+*.sqlite
 *.sqlite3
 .*.swp
 /.idea

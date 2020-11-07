@@ -9,7 +9,7 @@
     seesaw.keystroke
     seesaw.table
     [sqls.model :refer [conn?]]
-    [sqls.util :refer [all? any?]]
+    [sqls.util :refer [all?]]
     [sqls.ui.proto :refer [ConnListWindow show-conn-list-window!]]
     sqls.ui.seesaw.conn-edit)
   (:import

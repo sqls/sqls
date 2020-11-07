@@ -5,10 +5,6 @@
            [clojure.lang Atom])
   (:require [clojure.string :as string]))
 
-(defn any?
-  [c]
-  (some identity c))
-
 (defn all?
   [c]
   (every? identity c))

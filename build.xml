@@ -1,36 +1,37 @@
 <project default="bundle">
     <property environment="env"/>
     <property name="sqls.version">0.1.10</property>
-    <taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask">
-        <classpath>
-            <pathelement location="lib/appbundler-1.0ea.jar"/>
-        </classpath>
-    </taskdef>
+    <taskdef name="bundleapp"
+        classname="com.oracle.appbundler.AppBundlerTask"
+        classpath="lib/appbundler-1.0ea.jar"/>
     <path id="runclasspathref">
         <pathelement location="target/uberjar/sqls-${sqls.version}-standalone.jar"/>
     </path>
     <target name="bundle">
         <bundleapp
-                classpathref="runclasspathref"
-                executablename="SQLs"
-                outputdirectory="target"
-                name="SQLs"
-                displayname="SQLs"
-                identifier="cx.hell.sqls"
-                shortversion="${sqls.version}"
-                version="${sqls.version}"
-                applicationCategory="public.app-category.developer-tools"
-                mainclassname="sqls.core"
-                jvmrequired="1.8"
-                jrepreferred="true"
-                icon="resources/sqls.icns">
-            <!-- <runtime dir="${env.JAVA_HOME}"/> -->
+            applicationCategory="public.app-category.developer-tools"
+            classpathref="runclasspathref"
+            copyright="2020 Maciej Pietrzak"
+            displayname="SQLs"
+            executablename="SQLs"
+            icon="resources/sqls.icns"
+            identifier="cx.hell.sqls"
+            mainclassname="sqls.core"
+            name="SQLs"
+            outputdirectory="target"
+            shortversion="${sqls.version}"
+            version="${sqls.version}">
+
+            <runtime dir="${runtime}/Contents/Home"/>
+
             <option value="-Dapple.laf.useScreenMenuBar=true"/>
             <option value="-Dcom.apple.macos.useScreenMenuBar=true"/>
-            <option value="-Xms32M" name="Xms"/>
-            <option value="-Xmx1G" name="Xmx"/>
             <option value="-Dcom.apple.smallTabs=true"/>
             <option value="-Xdock:name=SQLs"/>
+            <option value="-Xms16M" name="Xms"/>
+            <option value="-Xmx32G" name="Xmx"/>
+            <option value="-XX:+UseG1GC"/>
+            <option value="-XX:MaxGCPauseMillis=5"/>
         </bundleapp>
     </target>
 </project>
