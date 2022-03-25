@@ -3,11 +3,11 @@
   :url "https://github.com/mpietrzak/sqls"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
-  :dependencies [[com.fifesoft/rsyntaxtextarea "3.1.6"]
-                 [com.taoensso/timbre "5.1.2"]
+  :dependencies [[com.fifesoft/rsyntaxtextarea "3.2.0"]
+                 [com.taoensso/timbre "5.2.1"]
                  [fipp "0.6.25"]
                  [io.aviso/pretty "1.1.1"]
-                 [org.clojure/clojure "1.10.3"]
+                 [org.clojure/clojure "1.11.0"]
                  [org.clojure/data.json "2.4.0"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [org.clojure/tools.cli "1.0.206"]
