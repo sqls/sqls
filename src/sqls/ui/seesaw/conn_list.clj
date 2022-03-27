@@ -2,6 +2,7 @@
   "Conn list window UI implementation."
   (:require
     [clojure.pprint :refer [pprint]]
+    [clojure.string :as s]
     fipp.edn
     seesaw.core
     [seesaw.bind :as b]
@@ -9,40 +10,76 @@
     seesaw.keystroke
     seesaw.table
     [sqls.model :refer [conn?]]
-    [sqls.util :refer [all?]]
+    [sqls.util :refer [all? atom? infof is-uniq-elems? spy]]
     [sqls.ui.proto :refer [ConnListWindow show-conn-list-window!]]
     sqls.ui.seesaw.conn-edit)
   (:import
     [clojure.lang Atom]
     [java.awt Point]
     [java.awt.event MouseEvent]
-    [javax.swing JFrame JTable]))
+    [javax.swing JFrame JTable]
+    [javax.swing.table AbstractTableModel]))
 
-(defn build-connection-list-item
-  "Convert one connection to UI item struct."
-  [conn]
-  (assert (not= conn nil))
-  {:name (:name conn)
-   :desc (:desc conn)
-   :class (:class conn)
-   :jar (:jar conn)
-   :conn-data conn})
 
-(defn build-connection-list-model
-  "Return model for UI table based on connection list."
-  [connections]
-  [:columns [:name :desc :class :jar]
-   :rows (map build-connection-list-item connections)])
-
-(defn build-connection-list-table
+(defn build-connection-list-table!
   "Create a UI component that contains list of connections, bo be added to respective container.
-  Parameter connections contains a list of conn-data maps, this parameter can be nil."
-  [connections]
-  (let [t (seesaw.core/table
-            :id :conn-list-table
-            :preferred-size [480 :by 320]
-            :model (build-connection-list-model connections))]
-    t))
+  Parameter conns is an atom that contains a list of conn-data maps, this parameter can be nil.
+  Returns map of table and model."
+  [enabled-connections-atom conns-atom]
+  {:pre [(or (nil? conns-atom) (and (atom? conns-atom) (vector? @conns-atom)))]}
+  (let [build-model! (fn [enabled-connections-atom conns]
+                       (let [column-names [""
+                                           "name"
+                                           "desc"
+                                           "class"
+                                           "jar"]
+                             column-index-to-key-map {0 :connected
+                                                      1 :name
+                                                      2 :desc
+                                                      3 :class
+                                                      4 :jar}]
+                         (proxy
+                           [AbstractTableModel]
+                           []
+                           (getRowCount [] (count @conns-atom))
+                           (getColumnCount [] 5)
+                           (getColumnName [column]
+                             (let [column-name (get column-names column)]
+                               (assert (not (nil? column-name)))
+                               column-name))
+                           (getValueAt [row column]
+                             (if (= column -1)
+                               (get @conns-atom row)
+                               (if (or (= row -1) (= column -1))
+                                 nil
+                                 (let [column-key (get column-index-to-key-map column)]
+                                   (assert (not (nil? column-key)))
+                                   (let [raw-value (if (= :connected column-key)
+                                                     (not (contains? @enabled-connections-atom (-> conns deref (get row) (get :name))))
+                                                     (-> conns
+                                                         deref
+                                                         (get row)
+                                                         (get column-key)))
+                                         value (if (= column-key :connected)
+                                                 (if raw-value
+                                                   " "
+                                                   "+")
+                                                 raw-value)]
+                                     value))))))))
+        model (build-model! enabled-connections-atom conns-atom)
+        table (seesaw.core/table
+                :id :conn-list-table
+                :preferred-size [1024 :by 768]
+                :model model)]
+    (let [column-model (.getColumnModel table)
+          column (.getColumn column-model 0)
+          w 25]
+      (.setPreferredWidth column w)
+      (.setMaxWidth column w)
+      (.setMinWidth column w)
+      (.setWidth column w)
+      (.setResizable column false))
+    {:model model :table table}))
 
 (defn set-conn-list-frame-bindings!
   [^JFrame frame
@@ -55,23 +92,35 @@
     (assert (not= btn-connect nil))
     (assert (not= btn-delete nil))
     (assert (not= btn-edit nil))
-    (let [is-connectable? (fn [^String conn-name] (contains? @enabled-connections-atom conn-name))
+    (let [is-connectable? (fn [^String conn-name]
+                            (assert (not (nil? conn-name)))
+                            (let [x (contains? @enabled-connections-atom conn-name)]
+                              (infof "is-connectable? conn-name: %s -> %s" conn-name x)
+                              x))
           src-on-list-chain (b/bind
                               (b/selection conn-list-table)
                               (b/transform (fn [sel]
-                                             (if (not= nil sel)
+                                             (infof "src-on-list-chain: conn-list-table selection is now %s" sel)
+                                             (if sel
                                                (->> sel
                                                     (seesaw.table/value-at conn-list-table)
+                                                    ((fn [val]
+                                                       (infof "src-on-list: value: %s" val)
+                                                       val
+                                                       ))
                                                     :name
                                                     is-connectable?)
                                                false))))
           src-on-atom-chain (b/bind
                               enabled-connections-atom
                               (b/transform (fn [_]
-                                             (->> (seesaw.core/selection conn-list-table)
-                                                  (seesaw.table/value-at conn-list-table)
+                                             (let [sel (->> (seesaw.core/selection conn-list-table)
+                                                            (seesaw.table/value-at conn-list-table))]
+                                               (if sel
+                                                 (-> sel
                                                   :name
-                                                  is-connectable?))))]
+                                                  is-connectable?)
+                                                 false)))))]
       (doseq [src [src-on-list-chain src-on-atom-chain]]
         (b/bind
           src
@@ -84,10 +133,13 @@
   [^JFrame frame]
   (assert (not= frame nil))
   (let [table (seesaw.core/select frame [:#conn-list-table])
-        selected-table-item (seesaw.core/selection table)
-        conn-item (seesaw.table/value-at table selected-table-item)
-        conn-data (:conn-data conn-item)]
-    conn-data))
+        selected-table-item (seesaw.core/selection table)]
+    (seesaw.table/value-at table selected-table-item)))
+
+(defn get-selected-conn-name
+  [^JFrame frame]
+  (assert (not= frame nil))
+  (:name (spy (get-selected-conn-data frame))))
 
 (defn on-btn-add-click!
   "Handle add connection button in conn list frame."
@@ -115,18 +167,29 @@
     (seesaw.core/show! edit-connection-frame)))
 
 (defn on-btn-delete-click!
-  "User clicks delete button in connection list window."
-  [delete-connection! e]
+  "User clicks delete button in connection list window.
+  Params:
+  - delete-connection! - the handler to actually delete connection from the parent,
+  - conns-atom - the state of the conn-list component, a vector of conns
+  - conns-table-model - the model of the table
+  - e - the UI event, ignored"
+  [delete-connection! conns-atom conn-list-table-model e]
   (assert (not= e nil))
   (assert (not= delete-connection! nil))
   (assert (ifn? delete-connection!))
   (let [frame (seesaw.core/to-root e)
         conn-data (get-selected-conn-data frame)]
     (when-not (= conn-data nil)
-      (let [name (:name conn-data)
-            new-connections (delete-connection! name)
-            conn-list-table (seesaw.core/select frame [:#conn-list-table])]
-        (seesaw.core/config! conn-list-table :model (build-connection-list-model new-connections))))))
+      (let [conn-name (:name conn-data)
+            new-connections (delete-connection! conn-name)]
+        (swap!
+          conns-atom
+          (fn [conns]
+            (vec
+              (filter
+                (fn [conn] (not (= conn-name (:name conn))))
+                conns))))
+        (.fireTableDataChanged conn-list-table-model)))))
 
 (defn on-btn-connect-click!
   "Handle button Connect click action: open worksheet window bound to selected connection.
@@ -140,30 +203,25 @@
   - _event - UI event.
   "
   [conn-list-frame conn-list-window create-worksheet! _event]
-  (let [conn-data (get-selected-conn-data conn-list-frame)]
-    (assert conn-data)
-    (create-worksheet! conn-list-window (:name conn-data))))
+  (let [conn-name (get-selected-conn-name conn-list-frame)]
+    (assert conn-name)
+    (assert (string? conn-name))
+    (assert (not (empty? (s/trim conn-name))))
+    (create-worksheet! conn-list-window conn-name)))
 
 (defn enable-conn!
-  [conns-atom conn-name]
-  {:pre [string? conn-name]}
-  (swap! conns-atom conj conn-name))
+  [enabled-conns-atom conn-list-table-model conn-name]
+  {:pre [(string? conn-name)]}
+  (swap! enabled-conns-atom conj conn-name)
+  (.fireTableDataChanged conn-list-table-model))
 
 (defn disable-conn!
-  [conns-atom conn-name]
+  [enabled-conns-atom conn-list-table-model conn-name]
   {:pre [string? conn-name]}
-  (swap! conns-atom disj conn-name))
-
-(defn set-conns!
-  [table conns]
-  {:pre [(sequential? conns)
-         (every? conn? conns)
-         (every? :name conns)]}
-  (let [rows (map build-connection-list-item conns)]
-    (seesaw.table/clear! table)
-    (when-not (empty? rows)
-      (doseq [[i row] (map vector (range) rows)]
-        (seesaw.table/insert-at! table i row)))))
+  ; I don't like the enabled-conns-atom...
+  (swap! enabled-conns-atom disj conn-name)
+  (infof "disable-conn!: the enabled-conns-atom is now %s" @enabled-conns-atom)
+  (.fireTableDataChanged conn-list-table-model))
 
 (defn on-conn-list-table-mouse-clicked!
   [conn-list-window
@@ -210,7 +268,8 @@
          (:create-worksheet handlers)
          (:conn-list-closed handlers)]
    :post [(not (nil? %))]}
-  (let [enabled-connections-atom (atom (apply hash-set (map :name connections)))
+  (let [enabled-conns-atom (atom (apply hash-set (map :name connections)))
+        conns-atom (atom (vec connections))
         delete-connection! (:delete-connection! handlers)
         btn-about (seesaw.core/button :id :btn-about :text "About" :listen [:action (fn [_] (sqls.ui.proto/show-about! ui about-text))])
         btn-add (seesaw.core/button :id :btn-new :text "Add")
@@ -220,8 +279,10 @@
                                        :enabled? false
                                        :listen [:action (partial on-btn-delete-click! delete-connection!)])
         btn-connect (seesaw.core/button :id :btn-connect :text "Connect" :enabled? false)
-        conn-list-table (build-connection-list-table connections)
+        {conn-list-table :table
+         conn-list-table-model :model} (build-connection-list-table! enabled-conns-atom conns-atom)
         _ (assert (not (nil? conn-list-table)))
+        _ (assert (not (nil? conn-list-table-model)))
         frame (seesaw.core/frame
                 :title "SQLS"
                 :on-close :dispose
@@ -240,21 +301,23 @@
                            (seesaw.keystroke/keystroke "menu W")
                            (fn [_] (seesaw.core/dispose! frame))
                            :scope :global)
-    (let [conn-list-window (reify
-                             ConnListWindow
+    (let [conn-list-window (reify ConnListWindow
                              (show-conn-list-window!
                                [_]
                                (seesaw.core/pack! frame)
                                (seesaw.core/show! frame))
-                             (enable-conn! [_ conn-name] (enable-conn! enabled-connections-atom conn-name))
-                             (disable-conn! [_ conn-name] (disable-conn! enabled-connections-atom conn-name))
-                             (set-conns! [_ conns] (set-conns! conn-list-table conns)))]
+                             (enable-conn! [_ conn-name] (enable-conn! enabled-conns-atom conn-list-table-model conn-name))
+                             (disable-conn! [_ conn-name] (disable-conn! enabled-conns-atom conn-list-table-model conn-name))
+                             (add-conn! [_ conn]
+                               (swap!
+                                 conns-atom
+                                 (fn [conns] conns))))]
       (seesaw.core/listen conn-list-table :mouse-clicked (partial on-conn-list-table-mouse-clicked! conn-list-window (:create-worksheet handlers)))
       ;; We should not pass plugins here… instead UI should be dumb… we should probably have a handler
       ;; to get JDBC template for given params.
       (seesaw.core/listen btn-add :action (partial on-btn-add-click! drivers plugins (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-edit :action (partial on-btn-edit-click! frame drivers plugins (:save-conn handlers) (:test-conn handlers)))
       (seesaw.core/listen btn-connect :action (partial on-btn-connect-click! frame conn-list-window (:create-worksheet handlers)))
-      (set-conn-list-frame-bindings! frame enabled-connections-atom)
+      (set-conn-list-frame-bindings! frame enabled-conns-atom)
       conn-list-window)))
 

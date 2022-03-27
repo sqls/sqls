@@ -7,7 +7,7 @@
                  [com.taoensso/timbre "5.2.1"]
                  [fipp "0.6.25"]
                  [io.aviso/pretty "1.1.1"]
-                 [org.clojure/clojure "1.11.0"]
+                 [org.clojure/clojure "1.11.1"]
                  [org.clojure/data.json "2.4.0"]
                  [org.clojure/java.jdbc "0.7.12"]
                  [org.clojure/tools.cli "1.0.206"]
@@ -17,7 +17,12 @@
   :main sqls.core
   :java-source-paths ["src"]
   :javac-options ["-target" "11" "-source" "11"]
-  :jvm-opts ["-Dclojure.compiler.direct-linking=true"]
+  :jvm-opts ["-Dclojure.compiler.direct-linking=true"
+             "-Xms4M"
+             "-Xmx16G"
+             "-XX:+UseZGC"
+             "-verbose:gc"
+             ]
   :target-path "target/%s"
   :plugins [[lein-codox "0.10.8"]]
   :codox {:output-dir "doc/codox"}
@@ -26,6 +31,6 @@
              :dev {:dependencies [[org.clojure/tools.namespace "1.2.0"]]
                    :global-vars {*warn-on-reflection* true}
                    :jvm-opts ["-Xms4M"
-                              "-Xmx4G"
-                              "-XX:+UseG1GC"
-                              "-XX:MaxGCPauseMillis=10"]}})
+                              "-Xmx16G"
+                              "-XX:+UseZGC"
+                              "-verbose:gc"]}})

@@ -17,6 +17,7 @@
             [sqls.stor :as stor]
             [sqls.ui.proto :refer [ConnListWindow
                                    UI
+                                   add-conn!
                                    enable-conn!
                                    disable-conn!
                                    invoke-later!
@@ -24,7 +25,6 @@
                                    create-conn-list-window!
                                    create-timer!
                                    destroy-timer!
-                                   set-conns!
                                    show-about!]]
             [sqls.util :refer [debugf human-readable-size info infof warnf]])
   (:import [java.sql Connection]
@@ -67,7 +67,8 @@
   - :conn-list - conn-list window or nil,
   - :connections - map of conn name to Conn record,
   - :conf-dir - current value of conf-dir, configuration files go there,
-  - :ui - UI."
+  - :ui - UI,
+  - :mem-stats - most recent mem statst."
   [ui conf-dir connections plugins]
   {:pre [(string? conf-dir)
          (map? connections)
@@ -82,7 +83,8 @@
            :connections connections
            :conf-dir    conf-dir
            :conn-list   nil
-           :ui          ui}]
+           :ui          ui
+           :mem-stats   nil}]
     (atom s)))
 
 (defn save-conn!
@@ -90,18 +92,19 @@
   Parameters:
   - sqls-atom - sqls app state, must contain :conn-list,
   - old-conn-data - old connection data if editing, nil if saving new connection,
-  - new-conn-data - new connection data to be stored in settings and displayed in frame.
-  "
-  [sqls-atom _old-conn-data conn-data]
+  - conn-data - new connection data to be stored in settings and displayed in frame."
+  [sqls-atom old-conn-data conn-data]
   (let [conn-list-win (:conn-list @sqls-atom)
         conf-dir (:conf-dir @sqls-atom)
         new-conns (stor/add-connection! conf-dir conn-data)
         _ (assert (sequential? new-conns))
+        _ (assert (every? (fn [c] (string? (:name c))) new-conns))
         new-conns-is-enabled (for [conn new-conns]
                               [(:name conn)
                                (nil? (-> @sqls-atom :worksheets (get (:name conn))))])]
-    (set-conns! conn-list-win new-conns)
     (swap! sqls-atom assoc :connections (into {} (map (fn [conn] [(:name conn) conn]) new-conns)))
+    ; (set-conns! conn-list-win new-conns)
+    (add-conn! conn-list-win conn-data)
     (doseq [[c e] new-conns-is-enabled]
       (if e
         (enable-conn! conn-list-win c)
@@ -287,5 +290,4 @@
       (:help options) (exit 0 (usage summary))
       errors (exit 1 (error-msg errors)))
     (-sqls true)))
-
 

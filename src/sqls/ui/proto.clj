@@ -6,7 +6,9 @@
   (show-conn-list-window! [win])
   (enable-conn! [win conn-name])
   (disable-conn! [win conn-name])
-  (set-conns! [win conns]))
+  (add-conn! [win conn])
+  (mod-conn! [win conn-name conn])
+  (del-conn! [win conn-name]))
 
 
 (defprotocol WorksheetWindow

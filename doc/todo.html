@@ -1,0 +1,26 @@
+<h1 id="open">open</h1>
+<h2 id="features">features</h2>
+<ul class="incremental">
+<li>connected / not connected state of the worksheet,</li>
+<li>separate main worksheet conn from the helper conn,</li>
+<li>detect and warn if current transaction holds locks,</li>
+<li>detect and warn if current transaction is open too long</li>
+<li>optionally auto rollback broken transactions on PostgreSQL and maybe
+others,</li>
+<li>add type size to the desc box,</li>
+<li>fix config file detection logic,</li>
+<li>built in support for ssh tunnels,</li>
+<li>clojure starts slow (even though it’s quite fast), add a splash
+screen in pure Java before clojure init,</li>
+<li>show resident set size memory stats in the status bar,</li>
+<li>show mem stats in the conn list window also.</li>
+</ul>
+<h2 id="bugs">bugs</h2>
+<ul class="incremental">
+<li>conn error on “test conn” does not fit the message box</li>
+<li>memory stats should be aligned right</li>
+</ul>
+<h1 id="done">done</h1>
+<ul class="incremental">
+<li>on the conn list box, an indicator if the worksheet is open</li>
+</ul>

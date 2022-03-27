@@ -188,7 +188,7 @@
         ^String msg (conn-or-error :msg)
         ^String desc (conn-or-error :desc)
         ]
-    (if (not= conn nil)
+    (if (not (nil? conn))
       (do
         (swap! worksheet assoc :conn conn)
         worksheet)

@@ -2,7 +2,7 @@
   "Various utilities."
   (:import [java.io File]
            [java.lang System]
-           [clojure.lang Atom])
+           [clojure.lang IAtom])
   (:require [clojure.string :as string]))
 
 (defn all?
@@ -27,7 +27,7 @@
 
 (defn atom?
   [a]
-  (and (not-nil? a) (instance? Atom a)))
+  (and (not-nil? a) (instance? IAtom a)))
 
 (defn path-to-absolute-path
   "Return absolute path."
@@ -106,6 +106,17 @@
   [^String f]
   (let [df (File. f)]
     (.canWrite df)))
+
+(defn is-uniq-elems?
+  "Returns false if there's a duplicate. Avoids consuming all if dup is close."
+  [coll]
+  (loop [others coll
+         seen (set)]
+    (if (empty? others)
+      true  ; otherwise we'd return already
+      (if (contains? seen (first others))  ; seen must be a set
+        false  ; oops
+        (recur (rest others) (conj seen (first others)))))))
 
 (defn parent-dir
   "Get parent directory"
