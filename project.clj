@@ -21,8 +21,9 @@
              "-Xms4M"
              "-Xmx16G"
              "-XX:+UseZGC"
-             "-verbose:gc"
-             ]
+             "-XX:SoftMaxHeapSize=256M"
+             "-XX:ZUncommitDelay=15"
+             "-verbose:gc"]
   :target-path "target/%s"
   :plugins [[lein-codox "0.10.8"]]
   :codox {:output-dir "doc/codox"}
@@ -33,4 +34,6 @@
                    :jvm-opts ["-Xms4M"
                               "-Xmx16G"
                               "-XX:+UseZGC"
+                              "-XX:SoftMaxHeapSize=256M"
+                              "-XX:ZUncommitDelay=15"
                               "-verbose:gc"]}})
