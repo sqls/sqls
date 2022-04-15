@@ -10,7 +10,7 @@
 - optionally auto rollback broken transactions on PostgreSQL and maybe others,
 - add type size to the desc box,
 - fix config file detection logic,
-- built in support for ssh tunnels,
+- builtin support for ssh tunnels,
 - clojure starts slow (even though it's quite fast), add a splash screen in
   pure Java before clojure init,
 - show resident set size memory stats in the status bar,
@@ -18,10 +18,12 @@
 
 ## bugs
 
-- conn error on "test conn" does not fit the message box
-- memory stats should be aligned right
+-   conn error on "test conn" does not fit the message box
+-   mem stats should be visible in the new worksheet immediately if the app is
+    running for more than ~3s
 
 # done
 
 - on the conn list box, an indicator if the worksheet is open
+- memory stats should be aligned right
 

@@ -1,5 +1,5 @@
 (ns sqls.ui.seesaw.worksheet
-  (:use [clojure.string :only (join split-lines trim)])
+  (:require [clojure.string :refer [join split-lines trim]])
   (:require seesaw.chooser
             seesaw.core
             seesaw.keymap
@@ -9,11 +9,22 @@
   (:require [sqls.ui.dev-util :as ui-dev]
             [sqls.ui.proto :refer [UI WorksheetWindow]]
             [sqls.ui.seesaw.commander :refer [show-commander!]]
-            [sqls.util :refer [debugf str-or-nil?]])
-  (:import [java.awt Component Dimension Font GridBagConstraints GridBagLayout Insets Label Point Rectangle Toolkit]
+            [sqls.util :refer [debugf infof str-or-nil?]])
+  (:import [java.awt
+            Color
+            Component
+            Dimension
+            Font
+            GridBagConstraints
+            GridBagLayout
+            Insets
+            Label
+            Point
+            Rectangle
+            Toolkit]
            [java.awt.event InputEvent KeyEvent]
            [java.io File]
-           [javax.swing JComponent JFrame JPanel JScrollPane JTable JViewport KeyStroke JScrollBar]
+           [javax.swing BorderFactory JComponent JFrame JLabel JPanel JScrollPane JTable JViewport KeyStroke JScrollBar]
            [javax.swing.table DefaultTableModel TableColumn]
            [javax.swing.text DefaultEditorKit]
            [org.fife.ui.rsyntaxtextarea RSyntaxTextArea]))
@@ -427,15 +438,17 @@
         grid-bag-layout (GridBagLayout.)
         grid-bag-constraints (GridBagConstraints.)
         insets (Insets. 2 2 2 2)
-        _ (set! (.-fill grid-bag-constraints) GridBagConstraints/HORIZONTAL)
-        _ (set! (.-insets grid-bag-constraints) insets)
         ^Label label-left (seesaw.core/label :id :status-bar-text :text "Hello")
-        ^Label label-right (seesaw.core/label :id :status-bar-right-text :h-text-position :right)
-        _ (.setLayout panel grid-bag-layout)
-        _ (set! (.-weightx grid-bag-constraints) 0.8)
-        _ (.add panel label-left grid-bag-constraints)
-        _ (set! (.-weightx grid-bag-constraints) 0.2)
-        _ (.add panel label-right grid-bag-constraints)]
+        ^Label label-right (let [l (seesaw.core/label :id :status-bar-right-text)]
+                             (.setHorizontalAlignment l JLabel/RIGHT)
+                             l)]
+    (set! (.-fill grid-bag-constraints) GridBagConstraints/BOTH)
+    (set! (.-insets grid-bag-constraints) insets)
+    (.setLayout panel grid-bag-layout)
+    (set! (.-weightx grid-bag-constraints) 0.8)
+    (.add panel label-left grid-bag-constraints)
+    (set! (.-weightx grid-bag-constraints) 0.2)
+    (.add panel label-right grid-bag-constraints)
     panel))
 
 (defn create-worksheet-window!

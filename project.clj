@@ -21,7 +21,7 @@
              "-Xms4M"
              "-Xmx16G"
              "-XX:+UseZGC"
-             "-XX:SoftMaxHeapSize=256M"
+             "-XX:SoftMaxHeapSize=4G"
              "-XX:ZUncommitDelay=15"
              "-verbose:gc"]
   :target-path "target/%s"
@@ -34,6 +34,6 @@
                    :jvm-opts ["-Xms4M"
                               "-Xmx16G"
                               "-XX:+UseZGC"
-                              "-XX:SoftMaxHeapSize=256M"
+                              "-XX:SoftMaxHeapSize=4G"
                               "-XX:ZUncommitDelay=15"
                               "-verbose:gc"]}})

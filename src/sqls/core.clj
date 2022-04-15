@@ -219,7 +219,9 @@
         total (.totalMemory runtime)
         free (.freeMemory runtime)
         used (- total free)]
-    (str (human-readable-size used) " / " (human-readable-size total))))
+    (format "mem usage: used: %s, allocated: %s"
+            (human-readable-size used)
+            (human-readable-size total))))
 
 (defn create-sqls-timer!
   [ui sqls-atom]
