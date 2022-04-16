@@ -3,7 +3,8 @@
   (:import [java.io File]
            [java.lang System]
            [clojure.lang IAtom])
-  (:require [clojure.string :as string]))
+  (:require [clojure.string :as string])
+  (:import [oshi SystemInfo]))
 
 (defn all?
   [c]
@@ -59,6 +60,14 @@
   [^String f]
   {:pre [(string? f)]}
   (.getAbsolutePath (File. f)))
+
+(defn get-rss!
+  []
+  (let [sys-info (SystemInfo.)
+        os (.getOperatingSystem sys-info)
+        pid (.getProcessId os)
+        process (.getProcess os pid)]
+    (.getResidentSetSize process)))
 
 (defn list-dir
   "Return contents of directory as seq of strings.
@@ -155,7 +164,7 @@
   (let [units ["B" "KiB" "MiB" "GiB" "TiB" "PiB"]]
     (loop [b (float b)
            units units]
-      (if (> b 512)
+      (if (> b 960)
         (recur (/ b 1024) (rest units))
         (format "%.2f %s" b (first units))))))
 

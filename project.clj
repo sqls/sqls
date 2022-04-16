@@ -4,6 +4,7 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[com.fifesoft/rsyntaxtextarea "3.2.0"]
+                 [com.github.oshi/oshi-core "6.1.6"]
                  [com.taoensso/timbre "5.2.1"]
                  [fipp "0.6.25"]
                  [io.aviso/pretty "1.1.1"]

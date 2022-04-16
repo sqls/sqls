@@ -44,7 +44,6 @@ causing delayed releases etc. not as bad as prod outage, but still annoying.
 - builtin support for ssh tunnels,
 - clojure starts slow (even though it's quite fast), add a splash screen in
   pure Java before clojure init,
-- show resident set size memory stats in the status bar,
 - show mem stats in the conn list window also.
 
 ## bugs
@@ -57,4 +56,5 @@ causing delayed releases etc. not as bad as prod outage, but still annoying.
 
 - on the conn list box, an indicator if the worksheet is open
 - memory stats should be aligned right
+- show resident set size memory stats in the status bar
 

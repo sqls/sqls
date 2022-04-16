@@ -26,7 +26,7 @@
                                    create-timer!
                                    destroy-timer!
                                    show-about!]]
-            [sqls.util :refer [debugf human-readable-size info infof warnf]])
+            [sqls.util :refer [debugf get-rss! human-readable-size info infof warnf]])
   (:import [java.sql Connection]
            [sqls.model Conn]))
 
@@ -218,10 +218,12 @@
   (let [runtime (Runtime/getRuntime)
         total (.totalMemory runtime)
         free (.freeMemory runtime)
-        used (- total free)]
-    (format "mem usage: used: %s, allocated: %s"
+        used (- total free)
+        rss (get-rss!)]
+    (format "mem usage: used: %s, allocated: %s, rss: %s"
             (human-readable-size used)
-            (human-readable-size total))))
+            (human-readable-size total)
+            (human-readable-size rss))))
 
 (defn create-sqls-timer!
   [ui sqls-atom]
