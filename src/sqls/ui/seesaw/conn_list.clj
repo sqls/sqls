@@ -234,12 +234,10 @@
             ^Point point (.getPoint event)
             row-index (.rowAtPoint table point)]
         (when (or (zero? row-index) (pos? row-index))
-          (let [conn-table-item (seesaw.table/value-at table row-index)
-                conn-info (:conn-data conn-table-item)
-                conn-name (:name conn-info)]
+          (let [conn-name (:name (seesaw.table/value-at table row-index))]
             (assert (not (nil? conn-name)))
             (assert (string? conn-name))
-            (create-worksheet! conn-list-window (:name conn-info))))))))
+            (create-worksheet! conn-list-window conn-name)))))))
 
 (defn create-conn-list-window!
   "Create login window.
