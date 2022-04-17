@@ -56,6 +56,12 @@
   (let [sep File/separator]
     (string/join sep parts)))
 
+(defn create-finalizer!
+  [callback]
+  (reify Object
+    (finalize [this]
+      (callback))))
+
 (defn get-absolute-path
   [^String f]
   {:pre [(string? f)]}

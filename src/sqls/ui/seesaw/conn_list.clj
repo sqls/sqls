@@ -10,7 +10,7 @@
     seesaw.keystroke
     seesaw.table
     [sqls.model :refer [conn?]]
-    [sqls.util :refer [all? atom? infof is-uniq-elems? spy]]
+    [sqls.util :refer [all? atom? is-uniq-elems? spy]]
     [sqls.ui.proto :refer [ConnListWindow show-conn-list-window!]]
     sqls.ui.seesaw.conn-edit)
   (:import
@@ -94,20 +94,13 @@
     (assert (not= btn-edit nil))
     (let [is-connectable? (fn [^String conn-name]
                             (assert (not (nil? conn-name)))
-                            (let [x (contains? @enabled-connections-atom conn-name)]
-                              (infof "is-connectable? conn-name: %s -> %s" conn-name x)
-                              x))
+                            (contains? @enabled-connections-atom conn-name))
           src-on-list-chain (b/bind
                               (b/selection conn-list-table)
                               (b/transform (fn [sel]
-                                             (infof "src-on-list-chain: conn-list-table selection is now %s" sel)
                                              (if sel
                                                (->> sel
                                                     (seesaw.table/value-at conn-list-table)
-                                                    ((fn [val]
-                                                       (infof "src-on-list: value: %s" val)
-                                                       val
-                                                       ))
                                                     :name
                                                     is-connectable?)
                                                false))))
@@ -220,7 +213,6 @@
   {:pre [string? conn-name]}
   ; I don't like the enabled-conns-atom...
   (swap! enabled-conns-atom disj conn-name)
-  (infof "disable-conn!: the enabled-conns-atom is now %s" @enabled-conns-atom)
   (.fireTableDataChanged conn-list-table-model))
 
 (defn on-conn-list-table-mouse-clicked!

@@ -5,7 +5,7 @@
     [sqls.model :refer [conn?]]
     sqls.ui.proto
     [sqls.util :as util]
-    [sqls.util :refer [atom? not-nil?]]
+    [sqls.util :refer [atom? create-finalizer! info not-nil?]]
     sqls.jdbc)
   (:import [clojure.lang Agent Atom]
            [java.sql Connection SQLException]
@@ -133,15 +133,15 @@
 
   Worksheet atom is a structure map which contains following keys:
 
-  - :frame - the ui frame,
+  - :window - the ui frame,
   - :conn-data - specification of connection parameters as map,
   - :conn - the connection itself, created after connecting,
   - :result - result struct map,
   - :agent - agent used to run queries and other IO jobs that are meant to run one-by-one,
   - :state - state of the worksheet, atomically changed from UI, allowed states:
-
     - :idle,
-    - :busy - a query is running, worksheet is waiting for results.
+    - :busy - a query is running, worksheet is waiting for results,
+  - :finalizer - a ref to an object that can run additional cleanup.
 
   Result is a struct map with following keys:
 
@@ -155,7 +155,8 @@
          (conn? conn-data)
          (or (nil? worksheet-data)
              (map? worksheet-data))
-         (:save-worksheet-data handlers)]
+         (:save-worksheet-data handlers)
+         (ifn? (:save-worksheet-data handlers))]
    :post [(not (nil? %))
           (atom? %)
           (not (nil? (-> % deref :window)))]}
@@ -173,7 +174,8 @@
                          :agent worksheet-cmd-agent
                          :work-agent worksheet-work-agent
                          :state :idle
-                         :handlers handlers})]
+                         :handlers handlers
+                         :finalizer (create-finalizer! (fn [] (info "finalizer")))})]
     worksheet))
 
 (defn connect-worksheet!
