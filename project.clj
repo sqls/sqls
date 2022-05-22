@@ -8,6 +8,7 @@
                  [com.taoensso/timbre "5.2.1"]
                  [fipp "0.6.25"]
                  [io.aviso/pretty "1.1.1"]
+                 [com.mchange/c3p0 "0.9.5.5"]
                  [org.clojure/clojure "1.11.1"]
                  [org.clojure/data.json "2.4.0"]
                  [org.clojure/java.jdbc "0.7.12"]

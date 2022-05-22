@@ -5,7 +5,7 @@
     [sqls.model :refer [conn?]]
     sqls.ui.proto
     [sqls.util :as util]
-    [sqls.util :refer [atom? create-finalizer! info not-nil?]]
+    [sqls.util :refer [atom? create-finalizer! infof not-nil?]]
     sqls.jdbc)
   (:import [clojure.lang Agent Atom]
            [java.sql Connection SQLException]
@@ -28,15 +28,25 @@
   (println "window closed")
   (let [conn-data (:conn-data @worksheet)
         conn-name (:name conn-data)
-        ^Connection conn (:conn @worksheet)
         agent (:agent @worksheet)
         window (:window @worksheet)]
-    (sqls.ui.proto/release-resources! window)
-    (send-off agent (fn [_]
-                      (.close conn)
-                      nil))
     (assert (not-nil? conn-name))
     (assert (instance? String conn-name))
+    (sqls.ui.proto/release-resources! window)
+    (when-let [conn (:conn @worksheet)]
+      ; what if the worksheet agent is still blocked?
+      ; we should probably try to close immediately, but still handle the
+      ; blocking properly?
+      (send-off agent (fn [_]
+                        (.close conn)
+                        nil)))
+    (when-let [last-temp-conn (:last-temp-conn @worksheet)]
+      (send-off agent (fn [_]
+                        (.close last-temp-conn))))
+    (when-let [conn-pool (:conn-pool @worksheet)]
+      (send-off agent (fn [_]
+                        (infof "on-worksheet-window-closed! closing conn-pool %s" conn-pool)
+                        (.close conn-pool))))
     (reset! worksheet {})))
 
 (defn commit!
@@ -169,32 +179,49 @@
         worksheet-cmd-agent (agent {} :error-handler worksheet-agent-error-handler)
         ;; long running jobs are executed in this agent
         worksheet-work-agent (agent nil :error-handler worksheet-agent-error-handler)
+        conn-pool (sqls.jdbc/create-pooled-data-source! conn-data)
         worksheet (atom {:window worksheet-window
                          :conn-data conn-data
+                         :conn-pool conn-pool
+                         :conn nil  ; only for explicit transactions
+                         :last-temp-conn nil  ; set on execute, so we can close it explicitly on next execute
                          :agent worksheet-cmd-agent
                          :work-agent worksheet-work-agent
                          :state :idle
                          :handlers handlers
-                         :finalizer (create-finalizer! (fn [] (info "finalizer")))})]
+                         ; when using finalzer, we have to be careful which refs we capture, but generally the idea is
+                         ; that we'll find more bugs than introduce
+                         :finalizer (create-finalizer! (fn []
+                                                         (let [num-conns (.getNumConnectionsAllUsers conn-pool)
+                                                               num-busy-conns (.getNumBusyConnectionsAllUsers conn-pool)
+                                                               num-idle-conns (.getNumIdleConnectionsAllUsers conn-pool)]
+                                                           (infof (str "finalizer for %s: "
+                                                                       "num conns: %d, "
+                                                                       "num busy conns: %d, "
+                                                                       "num idle conns: %d")
+                                                                  conn-name
+                                                                  num-conns
+                                                                  num-busy-conns
+                                                                  num-idle-conns))))})]
     worksheet))
 
-(defn connect-worksheet!
-  "Create JDBC connection for this worksheet.
-  Returns worksheet with conn field set."
-  [ui
-   ^Atom worksheet]
-  {:pre [(not (-> @worksheet :conn-data nil?))]}
-  (let [conn-data (:conn-data @worksheet)
-        conn-or-error (sqls.jdbc/connect! conn-data)
-        ^Connection conn (conn-or-error :conn)
-        ^String msg (conn-or-error :msg)
-        ^String desc (conn-or-error :desc)
-        ]
-    (if (not (nil? conn))
-      (do
-        (swap! worksheet assoc :conn conn)
-        worksheet)
-      (sqls.ui.proto/show-error! ui msg))))
+; (defn connect-worksheet!
+;   "Create JDBC connection for this worksheet.
+;   Returns worksheet with conn field set."
+;   [ui
+;    ^Atom worksheet]
+;   {:pre [(not (-> @worksheet :conn-data nil?))]}
+;   (let [conn-data (:conn-data @worksheet)
+;         conn-or-error (sqls.jdbc/connect! conn-data)
+;         ^Connection conn (conn-or-error :conn)
+;         ^String msg (conn-or-error :msg)
+;         ^String desc (conn-or-error :desc)
+;         ]
+;     (if (not (nil? conn))
+;       (do
+;         (swap! worksheet assoc :conn conn)
+;         worksheet)
+;       (sqls.ui.proto/show-error! ui msg))))
 
 (defn show-results!
   "Display results from cursor in worksheet frame."
@@ -222,13 +249,29 @@
    ^Atom worksheet
    ^String sql]
   {:pre [(:window @worksheet)
-         (:conn @worksheet)]}
-  (let [win (:window @worksheet)
-        ^Connection conn (@worksheet :conn)]
+         (or (:conn-pool @worksheet)
+             (:conn @worksheet))]}
+  (let [worksheet-data @worksheet
+        win (:window worksheet-data)]
     (sqls.ui.proto/log! win (format "Executing:\n%s\n" sql))
     (sqls.ui.proto/status-text! win "Executing...")
     (try
-      (let [cursor (sqls.jdbc/execute! conn sql)]
+      (when-let [last-temp-conn (:last-temp-conn worksheet-data)]
+        (.close last-temp-conn)  ; TODO: what if closing fails, e.g. due to conn reset or even worse hangs
+        (swap!
+          worksheet
+          (fn [w]
+            (assoc w :last-temp-conn nil))))
+      (let [conn (if (:conn worksheet-data)
+                   (:conn worksheet-data)
+                   (let [conn (.getConnection (:conn-pool worksheet-data))]
+                     ; we just acquired a conn from the pool, we want to track it so we can return it to the pool
+                     (swap!
+                       worksheet
+                       (fn [w]
+                         (assoc w :last-temp-conn conn)))
+                     conn))
+            cursor (sqls.jdbc/execute! conn sql)]
         (when-not (nil? cursor)
           (show-results! worksheet cursor)
           (sqls.ui.proto/select-tab! win 0))
@@ -310,7 +353,7 @@
 
 
 (defn create-and-show-worksheet!
-  "Create and show worksheet, intiate connecting, return worksheet data structure.
+  "Create and show worksheet, initiate connecting, return worksheet data structure.
 
   Params:
 
@@ -351,11 +394,8 @@
                               ;; we can also drop resources associated with this worksheet structure.
                               (on-worksheet-window-closed! worksheet)
                               ;; Now that both window and this worksheet structure is disposed,
-                              ;; we can call parent so it can remove us from its structure.
+                              ;; we can call parent, so it can remove us from its structure.
                               ((:worksheet-closed handlers) (:name conn-data)))}]
       (sqls.ui.proto/set-worksheet-handlers! window handlers) ; set handlers should happen in "create-worksheet!"
       (sqls.ui.proto/show-worksheet-window! window)
-      (connect-worksheet! ui worksheet)
       worksheet)))
-
-
